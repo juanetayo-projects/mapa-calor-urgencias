@@ -79,7 +79,7 @@ const SKIP_FIELDS = new Set([
 ])
 
 // ---- CSV utilities ----
-function parseLine(line: string): string[] {
+function parseLine(line: string, sep: string): string[] {
   const result: string[] = []
   let cur = ''
   let inQ = false
@@ -90,26 +90,34 @@ function parseLine(line: string): string[] {
       if (line[i + 1] === '"') { cur += '"'; i++; continue }
       inQ = false; continue
     }
-    if (c === ',' && !inQ) { result.push(cur); cur = ''; continue }
+    if (c === sep && !inQ) { result.push(cur); cur = ''; continue }
     cur += c
   }
   result.push(cur)
   return result
 }
 
-function parseCSV(text: string): { headers: string[]; rows: Record<string, string>[] } {
+function detectSeparator(firstLine: string): string {
+  // Excel en español exporta con ; — detectar cuál produce más columnas
+  const commaCount = (firstLine.match(/,/g) ?? []).length
+  const semicolonCount = (firstLine.match(/;/g) ?? []).length
+  return semicolonCount > commaCount ? ';' : ','
+}
+
+function parseCSV(text: string): { headers: string[]; rows: Record<string, string>[]; sep: string } {
   const lines = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n')
-  if (lines.length < 2) return { headers: [], rows: [] }
-  const headers = parseLine(lines[0]).map(h => h.trim())
+  if (lines.length < 2) return { headers: [], rows: [], sep: ',' }
+  const sep = detectSeparator(lines[0])
+  const headers = parseLine(lines[0], sep).map(h => h.trim().replace(/^﻿/, '')) // strip BOM
   const rows: Record<string, string>[] = []
   for (let i = 1; i < lines.length; i++) {
     if (!lines[i].trim()) continue
-    const values = parseLine(lines[i])
+    const values = parseLine(lines[i], sep)
     const row: Record<string, string> = {}
     headers.forEach((h, idx) => { row[h] = (values[idx] ?? '').trim() })
     rows.push(row)
   }
-  return { headers, rows }
+  return { headers, rows, sep }
 }
 
 function normalizeDate(raw: string): string | null {

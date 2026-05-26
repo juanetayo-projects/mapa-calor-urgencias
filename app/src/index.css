@@ -29,7 +29,7 @@
     @apply text-slate-300 hover:bg-white/10 hover:text-white;
   }
   .card {
-    @apply bg-white rounded-xl border border-slate-200 shadow-sm;
+    @apply bg-white rounded-xl border border-slate-200 shadow-md;
   }
   .btn-primary {
     @apply bg-clinic-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-clinic-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed;

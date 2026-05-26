@@ -6,7 +6,7 @@ import {
   ChevronLeft,
   ChevronRight,
   LogOut,
-  Stethoscope,
+  Upload,
 } from 'lucide-react'
 import { useStore } from '@/store/useStore'
 import { useAuth } from '@/hooks/useAuth'
@@ -15,6 +15,7 @@ import { clsx } from 'clsx'
 const NAV = [
   { to: '/dashboard', icon: LayoutDashboard, label: 'Mapa de Calor' },
   { to: '/reportes',  icon: FileText,         label: 'Reportes' },
+  { to: '/importar',  icon: Upload,            label: 'Importar datos', analystOk: true },
   { to: '/admin',     icon: Settings,          label: 'Administración', adminOnly: true },
 ]
 
@@ -46,8 +47,9 @@ export default function Sidebar() {
 
       {/* Nav */}
       <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
-        {NAV.map(({ to, icon: Icon, label, adminOnly }) => {
+        {NAV.map(({ to, icon: Icon, label, adminOnly, analystOk }) => {
           if (adminOnly && profile?.role !== 'admin') return null
+          if (!adminOnly && !analystOk && profile?.role === 'viewer') return null
           return (
             <NavLink
               key={to}

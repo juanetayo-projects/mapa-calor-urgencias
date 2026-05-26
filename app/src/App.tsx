@@ -6,6 +6,7 @@ import Layout from '@/components/layout/Layout'
 import DashboardPage from '@/components/dashboard/DashboardPage'
 import AdminPage from '@/components/admin/AdminPage'
 import ReportsPage from '@/components/reports/ReportsPage'
+import ImportPage from '@/components/import/ImportPage'
 
 export default function App() {
   const { loading } = useAuth()
@@ -38,6 +39,7 @@ export default function App() {
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
             <Route path="/dashboard" element={<DashboardPage />} />
             <Route path="/reportes" element={<ReportsPage />} />
+            <Route path="/importar" element={<ImportPage />} />
             <Route path="/admin" element={<AdminPage />} />
           </Route>
         </Route>

@@ -45,8 +45,8 @@ export default function LoginPage() {
       <div className="relative w-full max-w-md">
         {/* Logo card */}
         <div className="text-center mb-8">
-          <img src="/logo-white.png" alt="Clínica Santa Bárbara" className="h-16 mx-auto mb-3" />
-          <p className="text-clinic-200 text-sm">Sistema de Gestión de Urgencias</p>
+          <img src={`${import.meta.env.BASE_URL}logo-white.png`} alt="Clínica Santa Bárbara" className="h-16 mx-auto mb-3" />
+          <p className="text-clinic-200 text-sm">Sistema de Gestión Mapa de Calor de Urgencias</p>
         </div>
 
         <div className="bg-white rounded-2xl shadow-2xl p-8">
@@ -55,7 +55,7 @@ export default function LoginPage() {
           </h2>
           <p className="text-slate-500 text-sm mb-6">
             {mode === 'login'
-              ? 'Mapa de Calor Urgencias'
+              ? 'Sistema de Gestión Mapa de Calor de Urgencias'
               : 'Ingrese su email para recibir instrucciones'}
           </p>
 

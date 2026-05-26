@@ -9,6 +9,20 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+    <script>
+      // Restore SPA path redirected via 404.html
+      (function(){
+        var p = window.location.search.match(/[?&]p=\/([^&]*)/);
+        if (p) {
+          window.history.replaceState(null, null,
+            window.location.pathname.split('/').slice(0,2).join('/') +
+            '/' + p[1].replace(/~and~/g, '&') +
+            (window.location.search.match(/[?&]q=([^&]*)/) ? '?' + window.location.search.match(/[?&]q=([^&]*)/)[1].replace(/~and~/g, '&') : '') +
+            window.location.hash
+          );
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

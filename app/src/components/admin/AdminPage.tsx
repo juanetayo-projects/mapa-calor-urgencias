@@ -36,17 +36,24 @@ export default function AdminPage() {
     },
   })
 
-  // Create user
+  // Helper: invoke manage-users Edge Function
+  async function invokeManageUsers(body: Record<string, unknown>) {
+    const { data, error } = await supabase.functions.invoke('manage-users', { body })
+    if (error) throw new Error(error.message)
+    if (data?.error) throw new Error(data.error)
+    return data
+  }
+
+  // Create user — usa Edge Function (GoTrue Admin API, hash compatible 100%)
   const createUserMutation = useMutation({
-    mutationFn: async (data: UserFormData) => {
-      const { error } = await supabase.rpc('fn_admin_create_user', {
-        p_email:     data.email!,
-        p_password:  data.password,
-        p_full_name: data.fullName!,
-        p_role:      data.role ?? 'viewer',
-      })
-      if (error) throw error
-    },
+    mutationFn: async (data: UserFormData) =>
+      invokeManageUsers({
+        action:    'create',
+        email:     data.email!,
+        password:  data.password,
+        full_name: data.fullName!,
+        role:      data.role ?? 'viewer',
+      }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['profiles'] })
       toast.success('Usuario creado correctamente')
@@ -55,12 +62,10 @@ export default function AdminPage() {
     onError: (err: Error) => toast.error(`Error: ${err.message}`),
   })
 
-  // Delete user
+  // Delete user — usa Edge Function
   const deleteUserMutation = useMutation({
-    mutationFn: async (userId: string) => {
-      const { error } = await supabase.rpc('fn_admin_delete_user', { p_user_id: userId })
-      if (error) throw error
-    },
+    mutationFn: async (userId: string) =>
+      invokeManageUsers({ action: 'delete', user_id: userId }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['profiles'] })
       toast.success('Usuario eliminado')
@@ -69,15 +74,10 @@ export default function AdminPage() {
     onError: (err: Error) => toast.error(`Error: ${err.message}`),
   })
 
-  // Change password
+  // Change password — usa Edge Function
   const changePasswordMutation = useMutation({
-    mutationFn: async ({ userId, password }: { userId: string; password: string }) => {
-      const { error } = await supabase.rpc('fn_admin_set_password', {
-        p_user_id:      userId,
-        p_new_password: password,
-      })
-      if (error) throw error
-    },
+    mutationFn: async ({ userId, password }: { userId: string; password: string }) =>
+      invokeManageUsers({ action: 'set_password', user_id: userId, password }),
     onSuccess: () => {
       toast.success('Contraseña actualizada')
       setDialog(null)

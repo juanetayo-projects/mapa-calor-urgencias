@@ -295,7 +295,7 @@ export default function ImportPage() {
   const [diagHeaders, setDiagHeaders] = useState<string[]>([])
   const [diagSep, setDiagSep] = useState('')
 
-  const canImport = profile?.role === 'admin' || profile?.role === 'analyst'
+  const canImport = profile?.role === 'admin'
   const isAdmin = profile?.role === 'admin'
 
   // Load import history

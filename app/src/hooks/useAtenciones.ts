@@ -87,56 +87,51 @@ export function useAniosDisponibles() {
 }
 
 // ---- Available triage / clasificacion levels ----
-// Direct query without ORDER so heap-order gives a diverse sample
+// Uses SELECT DISTINCT RPC (migration 005) for complete unique values
 export function useTriageDisponibles() {
   return useQuery({
     queryKey: ['triage-levels'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('atenciones')
-        .select('clasificacion_triage')
-        .not('clasificacion_triage', 'is', null)
-        .limit(5000)
+      const { data, error } = await supabase.rpc('get_clasificacion_disponibles')
       if (error) throw error
-      const unique = [...new Set((data ?? []).map((r) => r.clasificacion_triage as string))]
-      return unique.filter(Boolean).sort()
+      return ((data ?? []) as Array<{ clasificacion_triage: string }>)
+        .map((r) => r.clasificacion_triage)
+        .filter(Boolean)
+        .sort()
     },
     staleTime: 60 * 60_000,
   })
 }
 
 // ---- Available destino_clasificacion values ----
-// Direct query without ORDER for diverse results within limit
+// Uses SELECT DISTINCT RPC (migration 005) for complete unique values
 export function useDestinoDisponibles() {
   return useQuery({
     queryKey: ['destino-disponibles'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('atenciones')
-        .select('destino_clasificacion')
-        .not('destino_clasificacion', 'is', null)
-        .limit(5000)
+      const { data, error } = await supabase.rpc('get_destino_disponibles')
       if (error) throw error
-      const unique = [...new Set((data ?? []).map((r) => r.destino_clasificacion as string))]
-      return unique.filter(Boolean).sort().map((destino) => ({ destino }))
+      return ((data ?? []) as Array<{ destino_clasificacion: string }>)
+        .filter((r) => Boolean(r.destino_clasificacion))
+        .sort((a, b) => a.destino_clasificacion.localeCompare(b.destino_clasificacion))
+        .map((r) => ({ destino: r.destino_clasificacion }))
     },
     staleTime: 60 * 60_000,
   })
 }
 
 // ---- Available ubicacion_triage values ----
+// Uses SELECT DISTINCT RPC (migration 005) for complete unique values
 export function useUbicacionDisponibles() {
   return useQuery({
     queryKey: ['ubicacion-disponibles'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('atenciones')
-        .select('ubicacion_triage')
-        .not('ubicacion_triage', 'is', null)
-        .limit(5000)
+      const { data, error } = await supabase.rpc('get_ubicacion_disponibles')
       if (error) throw error
-      const unique = [...new Set((data ?? []).map((r) => r.ubicacion_triage as string))]
-      return unique.filter(Boolean).sort()
+      return ((data ?? []) as Array<{ ubicacion_triage: string }>)
+        .map((r) => r.ubicacion_triage)
+        .filter(Boolean)
+        .sort()
     },
     staleTime: 60 * 60_000,
   })

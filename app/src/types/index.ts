@@ -89,6 +89,7 @@ export interface Filtros {
   semanaDelMes: number | null
   triage: string
   destinoClasificacion: string
+  ubicacionTriage: string
   minutos: number
   vista: VistaHeatmap
 }

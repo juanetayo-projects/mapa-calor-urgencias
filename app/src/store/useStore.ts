@@ -23,6 +23,7 @@ const defaultFiltros: Filtros = {
   semanaDelMes: null,
   triage: 'all',
   destinoClasificacion: 'all',
+  ubicacionTriage: 'all',
   minutos: 30,
   vista: 'mensual',
 }

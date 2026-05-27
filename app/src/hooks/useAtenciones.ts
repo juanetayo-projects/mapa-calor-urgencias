@@ -4,12 +4,12 @@ import type { Filtros, HeatmapCell, StatsData } from '@/types'
 
 // ---- Heat map monthly (hours × calendar days) ----
 export function useHeatmapMensual(filtros: Filtros) {
-  const destino = (filtros.destinoClasificacion ?? 'all') === 'all'
-    ? null : filtros.destinoClasificacion
+  const destino   = (filtros.destinoClasificacion ?? 'all') === 'all' ? null : filtros.destinoClasificacion
+  const ubicacion = (filtros.ubicacionTriage      ?? 'all') === 'all' ? null : filtros.ubicacionTriage
   return useQuery({
-    queryKey: ['heatmap-mensual', filtros.anio, filtros.mes, filtros.diasSemana, filtros.semanaDelMes, filtros.triage, destino],
+    queryKey: ['heatmap-mensual', filtros.anio, filtros.mes, filtros.diasSemana, filtros.semanaDelMes, filtros.triage, destino, ubicacion],
     queryFn: async () => {
-      // Include p_destino only when set (requires migration 005); omitting it keeps old RPC working
+      // Only include optional filters when set — avoids breaking old RPC signatures before migration 005
       const params: Record<string, unknown> = {
         p_anio: filtros.anio,
         p_mes: filtros.mes,
@@ -17,7 +17,8 @@ export function useHeatmapMensual(filtros: Filtros) {
         p_semana_mes: filtros.semanaDelMes,
         p_triage: filtros.triage === 'all' ? null : filtros.triage,
       }
-      if (destino !== null) params.p_destino = destino
+      if (destino   !== null) params.p_destino   = destino
+      if (ubicacion !== null) params.p_ubicacion = ubicacion
       const { data, error } = await supabase.rpc('get_heatmap_data', params)
       if (error) throw error
       return (data ?? []) as HeatmapCell[]
@@ -29,10 +30,10 @@ export function useHeatmapMensual(filtros: Filtros) {
 
 // ---- Heat map weekly (hours × day-of-week) ----
 export function useHeatmapSemanal(filtros: Filtros) {
-  const destino = (filtros.destinoClasificacion ?? 'all') === 'all'
-    ? null : filtros.destinoClasificacion
+  const destino   = (filtros.destinoClasificacion ?? 'all') === 'all' ? null : filtros.destinoClasificacion
+  const ubicacion = (filtros.ubicacionTriage      ?? 'all') === 'all' ? null : filtros.ubicacionTriage
   return useQuery({
-    queryKey: ['heatmap-semanal', filtros.anio, filtros.mes, filtros.semanaDelMes, filtros.triage, destino],
+    queryKey: ['heatmap-semanal', filtros.anio, filtros.mes, filtros.semanaDelMes, filtros.triage, destino, ubicacion],
     queryFn: async () => {
       const params: Record<string, unknown> = {
         p_anio: filtros.anio,
@@ -40,7 +41,8 @@ export function useHeatmapSemanal(filtros: Filtros) {
         p_semana_mes: filtros.semanaDelMes,
         p_triage: filtros.triage === 'all' ? null : filtros.triage,
       }
-      if (destino !== null) params.p_destino = destino
+      if (destino   !== null) params.p_destino   = destino
+      if (ubicacion !== null) params.p_ubicacion = ubicacion
       const { data, error } = await supabase.rpc('get_heatmap_semanal', params)
       if (error) throw error
       return (data ?? []) as Array<{
@@ -87,20 +89,26 @@ export function useAniosDisponibles() {
   })
 }
 
-// ---- Available triage levels ----
+// ---- Available triage / clasificacion levels ----
+// Uses RPC (SELECT DISTINCT — migration 005) or falls back to unordered direct query
 export function useTriageDisponibles() {
   return useQuery({
     queryKey: ['triage-levels'],
     queryFn: async () => {
+      // RPC first (migration 005) — returns all distinct values
+      const rpc = await supabase.rpc('get_clasificacion_disponibles')
+      if (!rpc.error && rpc.data) {
+        return (rpc.data as Array<{ clasificacion: string }>).map((r) => r.clasificacion)
+      }
+      // Fallback: direct query WITHOUT ORDER so heap-order gives diverse sample
       const { data, error } = await supabase
         .from('atenciones')
         .select('clasificacion_triage')
         .not('clasificacion_triage', 'is', null)
-        .order('clasificacion_triage')
         .limit(1000)
       if (error) throw error
       const unique = [...new Set((data ?? []).map((r) => r.clasificacion_triage as string))]
-      return unique.sort()
+      return unique.filter(Boolean).sort()
     },
     staleTime: 60 * 60_000,
   })
@@ -111,17 +119,42 @@ export function useDestinoDisponibles() {
   return useQuery({
     queryKey: ['destino-disponibles'],
     queryFn: async () => {
+      // RPC first (migration 005)
+      const rpc = await supabase.rpc('get_destino_disponibles')
+      if (!rpc.error && rpc.data) {
+        return (rpc.data as Array<{ destino: string }>).map((r) => ({ destino: r.destino }))
+      }
+      // Fallback: direct query WITHOUT ORDER — heap order is more diverse than alphabetical
       const { data, error } = await supabase
         .from('atenciones')
         .select('destino_clasificacion')
         .not('destino_clasificacion', 'is', null)
-        .order('destino_clasificacion')
         .limit(2000)
       if (error) throw error
-      const unique = [
-        ...new Set((data ?? []).map((r) => r.destino_clasificacion as string)),
-      ].filter(Boolean).sort()
-      return unique.map((destino) => ({ destino }))
+      const unique = [...new Set((data ?? []).map((r) => r.destino_clasificacion as string))]
+      return unique.filter(Boolean).sort().map((destino) => ({ destino }))
+    },
+    staleTime: 60 * 60_000,
+  })
+}
+
+// ---- Available ubicacion_triage values ----
+export function useUbicacionDisponibles() {
+  return useQuery({
+    queryKey: ['ubicacion-disponibles'],
+    queryFn: async () => {
+      const rpc = await supabase.rpc('get_ubicacion_disponibles')
+      if (!rpc.error && rpc.data) {
+        return (rpc.data as Array<{ ubicacion: string }>).map((r) => r.ubicacion)
+      }
+      const { data, error } = await supabase
+        .from('atenciones')
+        .select('ubicacion_triage')
+        .not('ubicacion_triage', 'is', null)
+        .limit(2000)
+      if (error) throw error
+      const unique = [...new Set((data ?? []).map((r) => r.ubicacion_triage as string))]
+      return unique.filter(Boolean).sort()
     },
     staleTime: 60 * 60_000,
   })

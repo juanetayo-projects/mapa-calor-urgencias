@@ -30,7 +30,7 @@ export default function DashboardPage() {
     <div className="flex flex-col h-full">
       <Header
         title="Mapa de Calor · Urgencias"
-        subtitle={`Clínica Santa Bárbara · ${periodoLabel}${filtros.triage !== 'all' ? ` · ${filtros.triage}` : ''}${filtros.destinoClasificacion !== 'all' ? ` · ${filtros.destinoClasificacion}` : ''}`}
+        subtitle={`Clínica Santa Bárbara · ${periodoLabel}${filtros.triage !== 'all' ? ` · ${filtros.triage}` : ''}${(filtros.destinoClasificacion ?? 'all') !== 'all' ? ` · ${filtros.destinoClasificacion}` : ''}${(filtros.ubicacionTriage ?? 'all') !== 'all' ? ` · ${filtros.ubicacionTriage}` : ''}`}
       />
 
       <div className="flex-1 p-3 flex flex-col gap-2 overflow-auto min-h-0">

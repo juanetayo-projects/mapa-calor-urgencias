@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
 import { RotateCcw, SlidersHorizontal, Timer } from 'lucide-react'
 import { useStore } from '@/store/useStore'
-import { useAniosDisponibles, useTriageDisponibles, useDestinoDisponibles } from '@/hooks/useAtenciones'
+import { useAniosDisponibles, useTriageDisponibles, useDestinoDisponibles, useUbicacionDisponibles } from '@/hooks/useAtenciones'
 import { DIAS_SEMANA, DIAS_LABEL, MESES, type NombreDia, type VistaHeatmap } from '@/types'
 import { calcCapacidad } from '@/utils/heatmap'
 import { clsx } from 'clsx'
@@ -11,6 +11,7 @@ export default function FiltersPanel() {
   const { data: anios = [] } = useAniosDisponibles()
   const { data: triages = [] } = useTriageDisponibles()
   const { data: destinos = [] } = useDestinoDisponibles()
+  const { data: ubicaciones = [] } = useUbicacionDisponibles()
 
   // Cuando los años disponibles cargan, si el año en el store no tiene datos,
   // cambiar automáticamente al primer año disponible
@@ -129,6 +130,21 @@ export default function FiltersPanel() {
             <option value="all">Todos</option>
             {destinos.map(({ destino }) => (
               <option key={destino} value={destino}>{destino}</option>
+            ))}
+          </select>
+        </div>
+
+        {/* Ubicación Triage */}
+        <div className="flex items-center gap-1">
+          <label className="text-[10px] font-medium text-slate-400 whitespace-nowrap">Ubicación</label>
+          <select
+            className="filter-select py-1 text-xs"
+            value={filtros.ubicacionTriage ?? 'all'}
+            onChange={(e) => setFiltros({ ubicacionTriage: e.target.value })}
+          >
+            <option value="all">Todas</option>
+            {ubicaciones.map((u) => (
+              <option key={u} value={u}>{u}</option>
             ))}
           </select>
         </div>

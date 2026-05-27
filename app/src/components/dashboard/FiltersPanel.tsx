@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { RotateCcw, SlidersHorizontal, Timer } from 'lucide-react'
 import { useStore } from '@/store/useStore'
 import { useAniosDisponibles, useTriageDisponibles } from '@/hooks/useAtenciones'
@@ -9,6 +10,14 @@ export default function FiltersPanel() {
   const { filtros, setFiltros, resetFiltros } = useStore()
   const { data: anios = [] } = useAniosDisponibles()
   const { data: triages = [] } = useTriageDisponibles()
+
+  // Cuando los años disponibles cargan, si el año en el store no tiene datos,
+  // cambiar automáticamente al primer año disponible
+  useEffect(() => {
+    if (anios.length > 0 && !anios.some(({ anio }) => anio === filtros.anio)) {
+      setFiltros({ anio: anios[0].anio })
+    }
+  }, [anios]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const capacidad = calcCapacidad(filtros.minutos)
 

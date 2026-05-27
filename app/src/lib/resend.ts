@@ -1,3 +1,5 @@
+import { supabase } from './supabase'
+
 export interface EmailPayload {
   to: string[]
   subject: string
@@ -6,34 +8,25 @@ export interface EmailPayload {
 }
 
 export async function sendEmail(payload: EmailPayload): Promise<{ success: boolean; error?: string }> {
-  const apiKey = import.meta.env.VITE_RESEND_API_KEY
-
-  if (!apiKey) {
-    return {
-      success: false,
-      error: 'Variable VITE_RESEND_API_KEY no configurada. Añádela al archivo .env.local con tu clave de Resend (resend.com).',
-    }
-  }
-
   try {
-    const response = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        from: 'Mapa de Calor <noreply@resend.dev>',
-        to: payload.to,
-        subject: payload.subject,
-        html: payload.html,
-        ...(payload.replyTo ? { reply_to: payload.replyTo } : {}),
-      }),
+    const { data, error } = await supabase.functions.invoke('send-report', {
+      body: payload,
     })
 
-    if (!response.ok) {
-      const err = await response.json().catch(() => ({}))
-      throw new Error((err as { message?: string }).message ?? `HTTP ${response.status}`)
+    if (error) {
+      // Edge Function no desplegada → dar instrucciones claras
+      const msg = error.message ?? String(error)
+      if (msg.includes('Failed to send') || msg.includes('fetch') || msg.includes('404')) {
+        return {
+          success: false,
+          error: 'Edge Function "send-report" no desplegada. Ir a Supabase → Edge Functions → crear "send-report" con el código en supabase/functions/send-report/index.ts',
+        }
+      }
+      throw error
+    }
+
+    if (data && !data.success) {
+      return { success: false, error: data.error ?? 'Error desconocido' }
     }
 
     return { success: true }

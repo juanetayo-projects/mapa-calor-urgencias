@@ -3,8 +3,9 @@ import { useStore } from '@/store/useStore'
 import { useHeatmapMensual, useHeatmapSemanal } from '@/hooks/useAtenciones'
 import { getCellStyle, formatHora, calcProfesionales, HORAS } from '@/utils/heatmap'
 import { getColombianHolidays } from '@/utils/holidays'
+import { exportToExcel, exportToPDF } from '@/utils/exportData'
 import { DIAS_SEMANA, type NombreDia } from '@/types'
-import { Loader2, Info } from 'lucide-react'
+import { Loader2, Info, FileSpreadsheet, FileText } from 'lucide-react'
 import { clsx } from 'clsx'
 
 const DAY_ABBREV = ['DOM', 'LUN', 'MAR', 'MIÉ', 'JUE', 'VIE', 'SÁB']
@@ -98,6 +99,24 @@ export default function HeatMap() {
     return meta
   }, [isSemanal, columns, filtros.mes, filtros.anio, holidays])
 
+  // Human-readable column labels for export
+  const colLabels = useMemo(
+    () =>
+      columns.map((col) => {
+        if (typeof col !== 'number') return col as string
+        const m = colMeta.get(col)
+        return m?.abbrev ? `${col} ${m.abbrev}` : String(col)
+      }),
+    [columns, colMeta],
+  )
+
+  function handleExcelExport() {
+    exportToExcel(grid, columns, colLabels, filtros)
+  }
+  function handlePDFExport() {
+    exportToPDF(grid, columns, colLabels, filtros)
+  }
+
   // Max value for color scale
   const maxValue = useMemo(() => {
     let max = 0
@@ -120,7 +139,7 @@ export default function HeatMap() {
 
   return (
     <div className="card p-3 overflow-x-auto relative">
-      {/* Legend */}
+      {/* Toolbar: legend + export buttons */}
       <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-1.5">
@@ -143,12 +162,33 @@ export default function HeatMap() {
             </div>
           )}
         </div>
-        <div className="flex items-center gap-1.5 text-xs text-slate-500">
-          <span>Menor</span>
-          {['#dcfce7', '#bbf7d0', '#fef9c3', '#fed7aa', '#fca5a5', '#dc2626'].map((c) => (
-            <div key={c} className="w-4 h-3.5 rounded-sm" style={{ background: c }} />
-          ))}
-          <span>Mayor</span>
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 text-xs text-slate-500">
+            <span>Menor</span>
+            {['#dcfce7', '#bbf7d0', '#fef9c3', '#fed7aa', '#fca5a5', '#dc2626'].map((c) => (
+              <div key={c} className="w-4 h-3.5 rounded-sm" style={{ background: c }} />
+            ))}
+            <span>Mayor</span>
+          </div>
+          {/* Export buttons */}
+          <div className="flex items-center gap-1 ml-2 border-l border-slate-200 pl-2">
+            <button
+              onClick={handleExcelExport}
+              title="Exportar a Excel"
+              className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-medium text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 transition-colors"
+            >
+              <FileSpreadsheet className="w-3.5 h-3.5" />
+              Excel
+            </button>
+            <button
+              onClick={handlePDFExport}
+              title="Exportar a PDF"
+              className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-medium text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 transition-colors"
+            >
+              <FileText className="w-3.5 h-3.5" />
+              PDF
+            </button>
+          </div>
         </div>
       </div>
 

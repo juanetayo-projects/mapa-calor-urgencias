@@ -1,36 +1,27 @@
+// Supabase Edge Function: send-report
+// Llama a Resend desde el servidor (evita restricción CORS del navegador)
+// Deploy: Supabase Dashboard → Edge Functions → New Function → nombre "send-report"
+// Secret:  Supabase Dashboard → Edge Functions → Manage secrets → RESEND_API_KEY
+
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 
-const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY') ?? ''
-const FROM_EMAIL     = Deno.env.get('FROM_EMAIL') ?? 'urgencias@clinicasantabarbara.com'
-const FROM_NAME      = 'Mapa de Calor Urgencias'
-
-interface EmailPayload {
-  to: string[]
-  subject: string
-  html: string
-  replyTo?: string
+const CORS = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
 serve(async (req) => {
-  // CORS preflight
   if (req.method === 'OPTIONS') {
-    return new Response('ok', {
-      headers: {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-      },
-    })
+    return new Response('ok', { headers: CORS })
   }
 
   try {
-    const { to, subject, html, replyTo }: EmailPayload = await req.json()
-
-    if (!to?.length || !subject || !html) {
-      return new Response(JSON.stringify({ error: 'Faltan campos requeridos: to, subject, html' }), {
-        status: 400,
-        headers: { 'Content-Type': 'application/json' },
-      })
+    const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY')
+    if (!RESEND_API_KEY) {
+      throw new Error('RESEND_API_KEY no configurada en los secrets de la Edge Function')
     }
+
+    const { to, subject, html, replyTo } = await req.json()
 
     const res = await fetch('https://api.resend.com/emails', {
       method: 'POST',
@@ -39,34 +30,25 @@ serve(async (req) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        from: `${FROM_NAME} <${FROM_EMAIL}>`,
+        from: 'Mapa de Calor Urgencias <noreply@resend.dev>',
         to,
         subject,
         html,
-        reply_to: replyTo,
+        ...(replyTo ? { reply_to: replyTo } : {}),
       }),
     })
 
     const data = await res.json()
-
-    if (!res.ok) {
-      throw new Error(data?.message ?? `Resend error ${res.status}`)
-    }
+    if (!res.ok) throw new Error(data.message ?? `HTTP ${res.status}`)
 
     return new Response(JSON.stringify({ success: true, id: data.id }), {
-      headers: {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*',
-      },
+      headers: { ...CORS, 'Content-Type': 'application/json' },
     })
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Error desconocido'
     return new Response(JSON.stringify({ success: false, error: message }), {
       status: 500,
-      headers: {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*',
-      },
+      headers: { ...CORS, 'Content-Type': 'application/json' },
     })
   }
 })

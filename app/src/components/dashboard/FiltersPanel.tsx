@@ -29,27 +29,19 @@ export default function FiltersPanel() {
   }
 
   return (
-    <div className="card p-4">
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2 text-slate-700 font-semibold">
-          <SlidersHorizontal className="w-4 h-4 text-clinic-600" />
-          <span className="text-sm">Filtros</span>
+    <div className="card px-3 py-2">
+      <div className="flex items-center gap-3 flex-wrap">
+        {/* Title */}
+        <div className="flex items-center gap-1.5 text-slate-600 font-semibold shrink-0">
+          <SlidersHorizontal className="w-3.5 h-3.5 text-clinic-600" />
+          <span className="text-xs">Filtros</span>
         </div>
-        <button
-          onClick={resetFiltros}
-          className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-clinic-600 transition-colors"
-        >
-          <RotateCcw className="w-3.5 h-3.5" />
-          Resetear
-        </button>
-      </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
         {/* Vista */}
-        <div>
-          <label className="block text-xs font-medium text-slate-500 mb-1.5">Vista</label>
+        <div className="flex items-center gap-1">
+          <label className="text-[10px] font-medium text-slate-400 whitespace-nowrap">Vista</label>
           <select
-            className="filter-select w-full"
+            className="filter-select py-1 text-xs"
             value={filtros.vista}
             onChange={(e) => setFiltros({ vista: e.target.value as VistaHeatmap })}
           >
@@ -60,10 +52,10 @@ export default function FiltersPanel() {
         </div>
 
         {/* Año */}
-        <div>
-          <label className="block text-xs font-medium text-slate-500 mb-1.5">Año</label>
+        <div className="flex items-center gap-1">
+          <label className="text-[10px] font-medium text-slate-400 whitespace-nowrap">Año</label>
           <select
-            className="filter-select w-full"
+            className="filter-select py-1 text-xs"
             value={filtros.anio}
             onChange={(e) => setFiltros({ anio: Number(e.target.value) })}
           >
@@ -77,10 +69,10 @@ export default function FiltersPanel() {
         </div>
 
         {/* Mes */}
-        <div>
-          <label className="block text-xs font-medium text-slate-500 mb-1.5">Mes</label>
+        <div className="flex items-center gap-1">
+          <label className="text-[10px] font-medium text-slate-400 whitespace-nowrap">Mes</label>
           <select
-            className="filter-select w-full"
+            className="filter-select py-1 text-xs"
             value={filtros.mes ?? ''}
             onChange={(e) => setFiltros({ mes: e.target.value ? Number(e.target.value) : null })}
           >
@@ -92,29 +84,29 @@ export default function FiltersPanel() {
         </div>
 
         {/* Semana del mes */}
-        <div>
-          <label className="block text-xs font-medium text-slate-500 mb-1.5">Semana del mes</label>
+        <div className="flex items-center gap-1">
+          <label className="text-[10px] font-medium text-slate-400 whitespace-nowrap">Semana</label>
           <select
-            className="filter-select w-full"
+            className="filter-select py-1 text-xs"
             value={filtros.semanaDelMes ?? ''}
             onChange={(e) =>
               setFiltros({ semanaDelMes: e.target.value ? Number(e.target.value) : null })
             }
           >
             <option value="">Todas</option>
-            <option value="1">Semana 1 (días 1–7)</option>
-            <option value="2">Semana 2 (días 8–14)</option>
-            <option value="3">Semana 3 (días 15–21)</option>
-            <option value="4">Semana 4 (días 22–28)</option>
-            <option value="5">Semana 5 (días 29–31)</option>
+            <option value="1">Sem 1 (1–7)</option>
+            <option value="2">Sem 2 (8–14)</option>
+            <option value="3">Sem 3 (15–21)</option>
+            <option value="4">Sem 4 (22–28)</option>
+            <option value="5">Sem 5 (29–31)</option>
           </select>
         </div>
 
         {/* Triage */}
-        <div>
-          <label className="block text-xs font-medium text-slate-500 mb-1.5">Triage</label>
+        <div className="flex items-center gap-1">
+          <label className="text-[10px] font-medium text-slate-400 whitespace-nowrap">Triage</label>
           <select
-            className="filter-select w-full"
+            className="filter-select py-1 text-xs"
             value={filtros.triage}
             onChange={(e) => setFiltros({ triage: e.target.value })}
           >
@@ -126,52 +118,53 @@ export default function FiltersPanel() {
         </div>
 
         {/* Minutos */}
-        <div>
-          <label className="block text-xs font-medium text-slate-500 mb-1.5 flex items-center gap-1">
-            <Timer className="w-3.5 h-3.5" />
-            Min/atención
+        <div className="flex items-center gap-1">
+          <label className="text-[10px] font-medium text-slate-400 whitespace-nowrap flex items-center gap-0.5">
+            <Timer className="w-3 h-3" />Min/at.
           </label>
-          <div className="flex items-center gap-2">
-            <input
-              type="number"
-              min={5}
-              max={120}
-              step={1}
-              className="filter-select w-20"
-              value={filtros.minutos}
-              onChange={(e) => setFiltros({ minutos: Math.max(1, Number(e.target.value)) })}
-            />
-            <span className="text-xs text-slate-500 whitespace-nowrap">
-              = <strong className="text-clinic-700">{capacidad}</strong>/h
-            </span>
-          </div>
-          <p className="text-xs text-slate-400 mt-1">
-            {capacidad} atenc. × profesional
-          </p>
+          <input
+            type="number"
+            min={5}
+            max={120}
+            step={1}
+            className="filter-select py-1 text-xs w-16"
+            value={filtros.minutos}
+            onChange={(e) => setFiltros({ minutos: Math.max(1, Number(e.target.value)) })}
+          />
+          <span className="text-[10px] text-slate-400 whitespace-nowrap">
+            = <strong className="text-clinic-700">{capacidad}</strong>/h
+          </span>
         </div>
-      </div>
 
-      {/* Días de semana chips */}
-      <div className="mt-3 pt-3 border-t border-slate-100">
-        <label className="block text-xs font-medium text-slate-500 mb-2">
-          Día de la semana {filtros.diasSemana.length > 0 && `(${filtros.diasSemana.length} selec.)`}
-        </label>
-        <div className="flex flex-wrap gap-1.5">
+        {/* Días de semana chips */}
+        <div className="flex items-center gap-1 flex-wrap ml-auto">
+          <span className="text-[10px] font-medium text-slate-400 whitespace-nowrap">
+            Días{filtros.diasSemana.length > 0 ? ` (${filtros.diasSemana.length})` : ''}:
+          </span>
           {DIAS_SEMANA.map((dia) => (
             <button
               key={dia}
               onClick={() => toggleDia(dia)}
               className={clsx(
-                'px-3 py-1 rounded-full text-xs font-medium transition-all border',
+                'px-1.5 py-0.5 rounded text-[10px] font-medium transition-all border',
                 filtros.diasSemana.includes(dia)
                   ? 'bg-clinic-600 text-white border-clinic-600'
-                  : 'bg-white text-slate-600 border-slate-200 hover:border-clinic-400 hover:text-clinic-600'
+                  : 'bg-white text-slate-500 border-slate-200 hover:border-clinic-400 hover:text-clinic-600'
               )}
             >
-              {dia}
+              {dia.slice(0, 3)}
             </button>
           ))}
         </div>
+
+        {/* Reset */}
+        <button
+          onClick={resetFiltros}
+          className="flex items-center gap-1 text-[10px] text-slate-400 hover:text-clinic-600 transition-colors shrink-0"
+        >
+          <RotateCcw className="w-3 h-3" />
+          Resetear
+        </button>
       </div>
     </div>
   )

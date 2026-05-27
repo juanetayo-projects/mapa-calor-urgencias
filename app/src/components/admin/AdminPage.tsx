@@ -4,14 +4,27 @@ import { supabase } from '@/lib/supabase'
 import Header from '@/components/layout/Header'
 import { useStore } from '@/store/useStore'
 import { useConfiguracion } from '@/hooks/useAtenciones'
-import { Save, Users, Settings2, Shield, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react'
+import {
+  Save, Users, Settings2, Shield, CheckCircle2, Loader2,
+  UserPlus, Trash2, KeyRound,
+} from 'lucide-react'
 import toast from 'react-hot-toast'
 import type { Profile, Configuracion } from '@/types'
+import UserDialog, { type UserDialogMode, type UserFormData } from './UserDialog'
+
+interface DialogState {
+  mode: UserDialogMode
+  userId?: string
+  userName?: string
+}
 
 export default function AdminPage() {
   const { profile } = useStore()
   const queryClient = useQueryClient()
   const { data: configs = [], isLoading: loadingConfig } = useConfiguracion()
+
+  const [dialog, setDialog] = useState<DialogState | null>(null)
+  const [deleteConfirm, setDeleteConfirm] = useState<Profile | null>(null)
 
   // Users query
   const { data: users = [], isLoading: loadingUsers } = useQuery({
@@ -23,6 +36,56 @@ export default function AdminPage() {
     },
   })
 
+  // Create user
+  const createUserMutation = useMutation({
+    mutationFn: async (data: UserFormData) => {
+      const { error } = await supabase.rpc('fn_admin_create_user', {
+        p_email:     data.email!,
+        p_password:  data.password,
+        p_full_name: data.fullName!,
+        p_role:      data.role ?? 'viewer',
+      })
+      if (error) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['profiles'] })
+      toast.success('Usuario creado correctamente')
+      setDialog(null)
+    },
+    onError: (err: Error) => toast.error(`Error: ${err.message}`),
+  })
+
+  // Delete user
+  const deleteUserMutation = useMutation({
+    mutationFn: async (userId: string) => {
+      const { error } = await supabase.rpc('fn_admin_delete_user', { p_user_id: userId })
+      if (error) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['profiles'] })
+      toast.success('Usuario eliminado')
+      setDeleteConfirm(null)
+    },
+    onError: (err: Error) => toast.error(`Error: ${err.message}`),
+  })
+
+  // Change password
+  const changePasswordMutation = useMutation({
+    mutationFn: async ({ userId, password }: { userId: string; password: string }) => {
+      const { error } = await supabase.rpc('fn_admin_set_password', {
+        p_user_id:      userId,
+        p_new_password: password,
+      })
+      if (error) throw error
+    },
+    onSuccess: () => {
+      toast.success('Contraseña actualizada')
+      setDialog(null)
+    },
+    onError: (err: Error) => toast.error(`Error: ${err.message}`),
+  })
+
+  // Change role
   const updateRoleMutation = useMutation({
     mutationFn: async ({ id, role }: { id: string; role: string }) => {
       const { error } = await supabase.from('profiles').update({ role }).eq('id', id)
@@ -30,7 +93,7 @@ export default function AdminPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['profiles'] })
-      toast.success('Rol actualizado correctamente')
+      toast.success('Rol actualizado')
     },
     onError: () => toast.error('Error al actualizar el rol'),
   })
@@ -51,9 +114,16 @@ export default function AdminPage() {
   })
 
   const [editValues, setEditValues] = useState<Record<string, string>>({})
-
   const getEditValue = (c: Configuracion) =>
     editValues[c.clave] !== undefined ? editValues[c.clave] : c.valor
+
+  async function handleDialogConfirm(data: UserFormData) {
+    if (dialog?.mode === 'create') {
+      await createUserMutation.mutateAsync(data)
+    } else if (dialog?.mode === 'reset_password' && dialog.userId) {
+      await changePasswordMutation.mutateAsync({ userId: dialog.userId, password: data.password })
+    }
+  }
 
   if (profile?.role !== 'admin') {
     return (
@@ -77,9 +147,18 @@ export default function AdminPage() {
       <div className="flex-1 p-5 space-y-5 overflow-auto">
         {/* Users */}
         <div className="card p-5">
-          <div className="flex items-center gap-2 mb-4">
-            <Users className="w-5 h-5 text-clinic-600" />
-            <h2 className="text-base font-semibold text-slate-800">Gestión de usuarios</h2>
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <Users className="w-5 h-5 text-clinic-600" />
+              <h2 className="text-base font-semibold text-slate-800">Gestión de usuarios</h2>
+            </div>
+            <button
+              onClick={() => setDialog({ mode: 'create' })}
+              className="btn-primary text-xs flex items-center gap-1.5"
+            >
+              <UserPlus className="w-3.5 h-3.5" />
+              Nuevo usuario
+            </button>
           </div>
 
           {loadingUsers ? (
@@ -95,6 +174,7 @@ export default function AdminPage() {
                     <th className="pb-2 text-xs font-semibold text-slate-500 uppercase">Email</th>
                     <th className="pb-2 text-xs font-semibold text-slate-500 uppercase">Rol</th>
                     <th className="pb-2 text-xs font-semibold text-slate-500 uppercase">Registro</th>
+                    <th className="pb-2 text-xs font-semibold text-slate-500 uppercase text-right">Acciones</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -109,7 +189,7 @@ export default function AdminPage() {
                           onChange={(e) =>
                             updateRoleMutation.mutate({ id: u.id, role: e.target.value })
                           }
-                          className="filter-select text-xs"
+                          className="filter-select text-xs py-1"
                         >
                           <option value="viewer">Visualizador</option>
                           <option value="analyst">Analista</option>
@@ -118,6 +198,28 @@ export default function AdminPage() {
                       </td>
                       <td className="py-2.5 text-slate-400 text-xs">
                         {new Date(u.created_at).toLocaleDateString('es-CO')}
+                      </td>
+                      <td className="py-2.5 text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          <button
+                            title="Cambiar contraseña"
+                            onClick={() =>
+                              setDialog({ mode: 'reset_password', userId: u.id, userName: u.full_name ?? u.email })
+                            }
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-clinic-600 hover:bg-clinic-50 transition-colors"
+                          >
+                            <KeyRound className="w-3.5 h-3.5" />
+                          </button>
+                          {u.id !== profile.id && (
+                            <button
+                              title="Eliminar usuario"
+                              onClick={() => setDeleteConfirm(u)}
+                              className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -178,8 +280,8 @@ export default function AdminPage() {
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             {[
-              { role: 'Administrador', color: 'red', perms: ['Ver dashboard', 'Filtros completos', 'Enviar reportes', 'Gestionar usuarios', 'Configurar sistema', 'Importar datos'] },
-              { role: 'Analista',      color: 'blue', perms: ['Ver dashboard', 'Filtros completos', 'Enviar reportes', 'Importar datos'] },
+              { role: 'Administrador', color: 'red',   perms: ['Ver dashboard', 'Filtros completos', 'Enviar reportes', 'Gestionar usuarios', 'Configurar sistema', 'Importar datos'] },
+              { role: 'Analista',      color: 'blue',  perms: ['Ver dashboard', 'Filtros completos', 'Enviar reportes', 'Importar datos'] },
               { role: 'Visualizador',  color: 'green', perms: ['Ver dashboard', 'Filtros básicos'] },
             ].map(({ role, color, perms }) => (
               <div key={role} className="border border-slate-200 rounded-xl p-4">
@@ -199,6 +301,46 @@ export default function AdminPage() {
           </div>
         </div>
       </div>
+
+      {/* User create/edit dialog */}
+      {dialog && (
+        <UserDialog
+          mode={dialog.mode}
+          userId={dialog.userId}
+          userName={dialog.userName}
+          onConfirm={handleDialogConfirm}
+          onClose={() => setDialog(null)}
+        />
+      )}
+
+      {/* Delete confirmation */}
+      {deleteConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm mx-4 p-6">
+            <h3 className="text-base font-semibold text-slate-800 mb-2">Eliminar usuario</h3>
+            <p className="text-sm text-slate-500 mb-4">
+              ¿Eliminar a <strong>{deleteConfirm.full_name ?? deleteConfirm.email}</strong>?
+              Esta acción no se puede deshacer.
+            </p>
+            <div className="flex gap-2 justify-end">
+              <button
+                onClick={() => setDeleteConfirm(null)}
+                className="btn-secondary text-xs"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={() => deleteUserMutation.mutate(deleteConfirm.id)}
+                disabled={deleteUserMutation.isPending}
+                className="bg-red-600 text-white px-4 py-2 rounded-lg text-xs font-medium hover:bg-red-700 transition-colors flex items-center gap-1.5 disabled:opacity-50"
+              >
+                {deleteUserMutation.isPending && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                Eliminar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

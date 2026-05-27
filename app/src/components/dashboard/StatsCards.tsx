@@ -15,18 +15,18 @@ interface StatCardProps {
 
 function StatCard({ icon, label, value, sub, color = 'clinic', loading }: StatCardProps) {
   return (
-    <div className="card p-4 flex items-start gap-4">
-      <div className={`p-2.5 rounded-xl bg-${color}-50 flex-shrink-0`}>
+    <div className="card px-2.5 py-2 flex items-center gap-2">
+      <div className={`p-1.5 rounded-lg bg-${color}-50 flex-shrink-0`}>
         <div className={`text-${color}-600`}>{icon}</div>
       </div>
-      <div className="min-w-0">
-        <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">{label}</p>
+      <div className="min-w-0 flex-1">
+        <p className="text-[9px] font-semibold text-slate-400 uppercase tracking-wide leading-none truncate">{label}</p>
         {loading ? (
-          <div className="h-8 w-24 bg-slate-200 rounded animate-pulse mt-1" />
+          <div className="h-5 w-14 bg-slate-200 rounded animate-pulse mt-0.5" />
         ) : (
-          <p className="text-2xl font-bold text-slate-800 mt-0.5">{value}</p>
+          <p className="text-base font-bold text-slate-800 leading-tight mt-0.5">{value}</p>
         )}
-        {sub && <p className="text-xs text-slate-400 mt-0.5">{sub}</p>}
+        {sub && <p className="text-[9px] text-slate-400 leading-none mt-0.5 truncate">{sub}</p>}
       </div>
     </div>
   )
@@ -46,37 +46,37 @@ export default function StatsCards() {
     : `Año ${filtros.anio}`
 
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
+    <div className="grid grid-cols-3 xl:grid-cols-6 gap-2">
       <StatCard
-        icon={<Users className="w-5 h-5" />}
+        icon={<Users className="w-4 h-4" />}
         label="Total atenciones"
         value={stats ? stats.total_atenciones.toLocaleString('es-CO') : '—'}
         sub={periodoLabel}
         loading={isLoading}
       />
       <StatCard
-        icon={<TrendingUp className="w-5 h-5" />}
+        icon={<TrendingUp className="w-4 h-4" />}
         label="Hora pico"
         value={stats ? formatHora(stats.pico_hora) : '—'}
         sub={stats ? `${stats.pico_total} atenciones` : undefined}
         loading={isLoading}
       />
       <StatCard
-        icon={<Calendar className="w-5 h-5" />}
+        icon={<Calendar className="w-4 h-4" />}
         label="Promedio / día"
         value={stats ? stats.promedio_dia.toFixed(0) : '—'}
         sub={`${stats?.total_dias ?? 0} días con datos`}
         loading={isLoading}
       />
       <StatCard
-        icon={<Timer className="w-5 h-5" />}
+        icon={<Timer className="w-4 h-4" />}
         label="Min / atención"
         value={filtros.minutos}
-        sub={`${capacidad} pac. × prof./hora`}
+        sub={`${capacidad} pac./prof./h`}
         color="indigo"
       />
       <StatCard
-        icon={<Stethoscope className="w-5 h-5" />}
+        icon={<Stethoscope className="w-4 h-4" />}
         label="Prof. en pico"
         value={picoProfs}
         sub="Profesionales requeridos"
@@ -84,10 +84,10 @@ export default function StatsCards() {
         loading={isLoading}
       />
       <StatCard
-        icon={<Clock className="w-5 h-5" />}
+        icon={<Clock className="w-4 h-4" />}
         label="Días analizados"
         value={stats?.total_dias ?? '—'}
-        sub={`Filtrando: ${filtros.triage === 'all' ? 'todos los triage' : filtros.triage}`}
+        sub={filtros.triage === 'all' ? 'Todos los triage' : filtros.triage}
         loading={isLoading}
       />
     </div>

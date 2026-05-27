@@ -1,5 +1,3 @@
-import { supabase } from './supabase'
-
 export interface EmailPayload {
   to: string[]
   subject: string
@@ -8,12 +6,37 @@ export interface EmailPayload {
 }
 
 export async function sendEmail(payload: EmailPayload): Promise<{ success: boolean; error?: string }> {
+  const apiKey = import.meta.env.VITE_RESEND_API_KEY
+
+  if (!apiKey) {
+    return {
+      success: false,
+      error: 'Variable VITE_RESEND_API_KEY no configurada. Añádela al archivo .env.local con tu clave de Resend (resend.com).',
+    }
+  }
+
   try {
-    const { data, error } = await supabase.functions.invoke('send-report', {
-      body: payload,
+    const response = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        from: 'Mapa de Calor <noreply@resend.dev>',
+        to: payload.to,
+        subject: payload.subject,
+        html: payload.html,
+        ...(payload.replyTo ? { reply_to: payload.replyTo } : {}),
+      }),
     })
-    if (error) throw error
-    return { success: true, ...data }
+
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}))
+      throw new Error((err as { message?: string }).message ?? `HTTP ${response.status}`)
+    }
+
+    return { success: true }
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'Error desconocido'
     return { success: false, error: msg }
@@ -38,7 +61,6 @@ export function buildReportHtml(params: {
     body { font-family: Arial, sans-serif; color: #1e293b; background: #f8fafc; margin: 0; padding: 0; }
     .container { max-width: 640px; margin: 0 auto; padding: 32px 16px; }
     .header { background: #1e4d8c; color: white; padding: 24px 32px; border-radius: 12px 12px 0 0; }
-    .header img { height: 40px; }
     .header h1 { margin: 8px 0 0; font-size: 20px; }
     .content { background: white; padding: 24px 32px; border: 1px solid #e2e8f0; }
     .stats { display: flex; gap: 16px; margin: 16px 0; }

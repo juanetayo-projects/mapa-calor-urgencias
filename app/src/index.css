@@ -14,7 +14,7 @@
 @layer components {
   .heatmap-cell {
     @apply relative flex items-center justify-center text-xs font-semibold rounded transition-all duration-200 cursor-default select-none;
-    min-height: 32px;
+    min-height: 22px;
   }
   .heatmap-cell:hover {
     @apply ring-2 ring-white ring-offset-1 z-10 scale-110 shadow-lg;

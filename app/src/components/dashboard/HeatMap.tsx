@@ -2,9 +2,12 @@ import { useMemo, useState } from 'react'
 import { useStore } from '@/store/useStore'
 import { useHeatmapMensual, useHeatmapSemanal } from '@/hooks/useAtenciones'
 import { getCellStyle, formatHora, calcProfesionales, HORAS } from '@/utils/heatmap'
+import { getColombianHolidays } from '@/utils/holidays'
 import { DIAS_SEMANA, type NombreDia } from '@/types'
 import { Loader2, Info } from 'lucide-react'
 import { clsx } from 'clsx'
+
+const DAY_ABBREV = ['DOM', 'LUN', 'MAR', 'MIÉ', 'JUE', 'VIE', 'SÁB']
 
 interface TooltipData {
   hora: number
@@ -13,6 +16,12 @@ interface TooltipData {
   profesionales: number
   x: number
   y: number
+}
+
+interface ColMeta {
+  abbrev: string | null
+  isSunday: boolean
+  isHoliday: boolean
 }
 
 export default function HeatMap() {
@@ -25,6 +34,8 @@ export default function HeatMap() {
   const { data: semanalData, isLoading: loadingS } = useHeatmapSemanal(filtros)
 
   const isLoading = isSemanal ? loadingS : loadingM
+
+  const holidays = useMemo(() => getColombianHolidays(filtros.anio), [filtros.anio])
 
   // Build a lookup: { hora: { key: value } }
   const grid = useMemo(() => {
@@ -49,7 +60,6 @@ export default function HeatMap() {
   const columns: Array<number | NombreDia> = useMemo(() => {
     if (isSemanal) return DIAS_SEMANA
     if (!mensualData || mensualData.length === 0) {
-      // Fallback: days 1-31 for the selected month
       const daysInMonth = filtros.mes
         ? new Date(filtros.anio, filtros.mes, 0).getDate()
         : 31
@@ -59,6 +69,34 @@ export default function HeatMap() {
     mensualData.forEach(({ key }) => days.add(key as number))
     return [...days].sort((a, b) => (a as number) - (b as number))
   }, [isSemanal, mensualData, filtros.mes, filtros.anio])
+
+  // Column metadata: abbreviation, Sunday flag, holiday flag
+  const colMeta = useMemo((): Map<number | NombreDia, ColMeta> => {
+    const meta = new Map<number | NombreDia, ColMeta>()
+    if (isSemanal) {
+      columns.forEach((col) => {
+        const name = col as NombreDia
+        meta.set(col, { abbrev: null, isSunday: name === 'DOM', isHoliday: false })
+      })
+    } else if (filtros.mes) {
+      columns.forEach((col) => {
+        const dayNum = col as number
+        const date = new Date(filtros.anio, filtros.mes! - 1, dayNum)
+        const dow = date.getDay()
+        const dateKey = `${filtros.anio}-${String(filtros.mes).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`
+        meta.set(col, {
+          abbrev: DAY_ABBREV[dow],
+          isSunday: dow === 0,
+          isHoliday: holidays.has(dateKey),
+        })
+      })
+    } else {
+      columns.forEach((col) => {
+        meta.set(col, { abbrev: null, isSunday: false, isHoliday: false })
+      })
+    }
+    return meta
+  }, [isSemanal, columns, filtros.mes, filtros.anio, holidays])
 
   // Max value for color scale
   const maxValue = useMemo(() => {
@@ -81,20 +119,34 @@ export default function HeatMap() {
   }
 
   return (
-    <div className="card p-4 overflow-x-auto relative">
+    <div className="card p-3 overflow-x-auto relative">
       {/* Legend */}
-      <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
-        <div className="flex items-center gap-1.5">
-          <Info className="w-4 h-4 text-slate-400" />
-          <span className="text-xs text-slate-500">
-            {filtros.vista === 'promedio' ? 'Promedio de atenciones' : 'Total atenciones'} por hora
-            {filtros.triage !== 'all' && ` · ${filtros.triage}`}
-          </span>
+      <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1.5">
+            <Info className="w-3.5 h-3.5 text-slate-400" />
+            <span className="text-xs text-slate-500">
+              {filtros.vista === 'promedio' ? 'Promedio atenciones' : 'Total atenciones'} por hora
+              {filtros.triage !== 'all' && ` · ${filtros.triage}`}
+            </span>
+          </div>
+          {filtros.mes && (
+            <div className="flex items-center gap-2 text-[10px] text-slate-400">
+              <span className="inline-flex items-center gap-1">
+                <span className="w-3 h-3 rounded-sm bg-red-100 border border-red-300 inline-block" />
+                Domingo
+              </span>
+              <span className="inline-flex items-center gap-1">
+                <span className="w-3 h-3 rounded-sm bg-amber-100 border border-amber-300 inline-block" />
+                Festivo
+              </span>
+            </div>
+          )}
         </div>
         <div className="flex items-center gap-1.5 text-xs text-slate-500">
           <span>Menor</span>
           {['#dcfce7', '#bbf7d0', '#fef9c3', '#fed7aa', '#fca5a5', '#dc2626'].map((c) => (
-            <div key={c} className="w-5 h-4 rounded-sm" style={{ background: c }} />
+            <div key={c} className="w-4 h-3.5 rounded-sm" style={{ background: c }} />
           ))}
           <span>Mayor</span>
         </div>
@@ -105,15 +157,48 @@ export default function HeatMap() {
         <div
           className="grid gap-px"
           style={{
-            gridTemplateColumns: `80px repeat(${columns.length}, minmax(28px, 1fr))`,
+            gridTemplateColumns: `68px repeat(${columns.length}, minmax(26px, 1fr))`,
           }}
         >
-          <div className="text-xs text-slate-400 text-center pb-1 font-medium">Hora</div>
-          {columns.map((col) => (
-            <div key={col} className="text-xs text-slate-500 text-center pb-1 font-medium">
-              {typeof col === 'number' ? col : col}
-            </div>
-          ))}
+          <div className="text-xs text-slate-400 text-center pb-0.5 font-medium">Hora</div>
+          {columns.map((col) => {
+            const m = colMeta.get(col)!
+            const isSun = m.isSunday
+            const isHol = m.isHoliday
+            const isSpecial = isSun || isHol
+            return (
+              <div
+                key={col}
+                className={clsx(
+                  'text-center pb-0.5 rounded-t-sm leading-none',
+                  isSpecial
+                    ? isSun
+                      ? 'bg-red-50'
+                      : 'bg-amber-50'
+                    : ''
+                )}
+              >
+                <div
+                  className={clsx(
+                    'text-[10px] font-bold leading-tight',
+                    isSun ? 'text-red-600' : isHol ? 'text-amber-600' : 'text-slate-600'
+                  )}
+                >
+                  {typeof col === 'number' ? col : col}
+                </div>
+                {m.abbrev && (
+                  <div
+                    className={clsx(
+                      'text-[8px] leading-tight font-medium',
+                      isSun ? 'text-red-400' : isHol ? 'text-amber-500' : 'text-slate-400'
+                    )}
+                  >
+                    {m.abbrev}
+                  </div>
+                )}
+              </div>
+            )
+          })}
         </div>
 
         {/* Data rows */}
@@ -122,7 +207,7 @@ export default function HeatMap() {
             key={hora}
             className="grid gap-px mb-px"
             style={{
-              gridTemplateColumns: `80px repeat(${columns.length}, minmax(28px, 1fr))`,
+              gridTemplateColumns: `68px repeat(${columns.length}, minmax(26px, 1fr))`,
             }}
           >
             {/* Hour label */}
@@ -137,11 +222,15 @@ export default function HeatMap() {
               const value = (grid[hora]?.[col as keyof typeof grid[number]] as number) ?? 0
               const style = getCellStyle(value, maxValue)
               const profs = value > 0 ? calcProfesionales(value, filtros.minutos) : 0
+              const m = colMeta.get(col)!
 
               return (
                 <div
                   key={col}
-                  className="heatmap-cell"
+                  className={clsx(
+                    'heatmap-cell',
+                    m.isSunday && !value && 'opacity-60',
+                  )}
                   style={{ background: style.bg, color: style.text }}
                   onMouseEnter={(e) => {
                     const rect = (e.target as HTMLElement).getBoundingClientRect()
@@ -157,9 +246,9 @@ export default function HeatMap() {
                   onMouseLeave={() => setTooltip(null)}
                 >
                   {value > 0 ? (
-                    <span className="text-[10px] leading-none font-bold">{value}</span>
+                    <span className="text-[9px] leading-none font-bold">{value}</span>
                   ) : (
-                    <span className="text-[9px] text-slate-300">·</span>
+                    <span className="text-[8px] text-slate-300">·</span>
                   )}
                 </div>
               )
@@ -171,11 +260,11 @@ export default function HeatMap() {
         <div
           className="grid gap-px mt-1 border-t border-slate-200 pt-1"
           style={{
-            gridTemplateColumns: `80px repeat(${columns.length}, minmax(28px, 1fr))`,
+            gridTemplateColumns: `68px repeat(${columns.length}, minmax(26px, 1fr))`,
           }}
         >
           <div className="flex items-center justify-end pr-2">
-            <span className="text-xs font-bold text-slate-700">TOTAL</span>
+            <span className="text-[10px] font-bold text-slate-700">TOTAL</span>
           </div>
           {columns.map((col) => {
             const total = HORAS.reduce(
@@ -185,7 +274,7 @@ export default function HeatMap() {
             return (
               <div
                 key={col}
-                className="flex items-center justify-center text-[10px] font-bold text-clinic-700 bg-clinic-50 rounded py-1"
+                className="flex items-center justify-center text-[9px] font-bold text-clinic-700 bg-clinic-50 rounded py-0.5"
               >
                 {total > 0 ? total : '—'}
               </div>

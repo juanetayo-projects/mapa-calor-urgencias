@@ -20,8 +20,8 @@ export default function DashboardPage() {
     : `Año ${filtros.anio}`
 
   const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
-    { id: 'heatmap', label: 'Mapa de Calor', icon: <LayoutGrid className="w-4 h-4" /> },
-    { id: 'semanal', label: 'Resumen Semanal', icon: <TableProperties className="w-4 h-4" /> },
+    { id: 'heatmap', label: 'Mapa de Calor', icon: <LayoutGrid className="w-3.5 h-3.5" /> },
+    { id: 'semanal', label: 'Resumen Semanal', icon: <TableProperties className="w-3.5 h-3.5" /> },
   ]
 
   return (
@@ -31,7 +31,7 @@ export default function DashboardPage() {
         subtitle={`Clínica Santa Bárbara · ${periodoLabel}${filtros.triage !== 'all' ? ` · ${filtros.triage}` : ''}`}
       />
 
-      <div className="flex-1 p-5 space-y-4 overflow-auto">
+      <div className="flex-1 p-3 flex flex-col gap-2 overflow-auto min-h-0">
         {/* Filters */}
         <FiltersPanel />
 
@@ -39,13 +39,13 @@ export default function DashboardPage() {
         <StatsCards />
 
         {/* Tabs */}
-        <div className="flex items-center gap-1 border-b border-slate-200 pb-0">
+        <div className="flex items-center gap-0.5 border-b border-slate-200">
           {tabs.map(({ id, label, icon }) => (
             <button
               key={id}
               onClick={() => setActiveTab(id)}
               className={clsx(
-                'flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-all -mb-px',
+                'flex items-center gap-1.5 px-3 py-2 text-xs font-medium border-b-2 transition-all -mb-px',
                 activeTab === id
                   ? 'border-clinic-600 text-clinic-700'
                   : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
@@ -58,8 +58,10 @@ export default function DashboardPage() {
         </div>
 
         {/* Content */}
-        {activeTab === 'heatmap' && <HeatMap />}
-        {activeTab === 'semanal' && <WeeklyView />}
+        <div className="flex-1 min-h-0">
+          {activeTab === 'heatmap' && <HeatMap />}
+          {activeTab === 'semanal' && <WeeklyView />}
+        </div>
       </div>
     </div>
   )

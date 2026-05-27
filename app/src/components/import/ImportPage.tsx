@@ -67,6 +67,17 @@ const COLUMN_MAP: Record<string, string> = {
   Ndia: 'nombre_dia',
 }
 
+// Lowercase version for case-insensitive lookup
+const COLUMN_MAP_LC: Record<string, string> = Object.fromEntries(
+  Object.entries(COLUMN_MAP).map(([k, v]) => [k.toLowerCase().replace(/\s/g, ''), v])
+)
+
+function resolveField(csvKey: string): string {
+  if (COLUMN_MAP[csvKey]) return COLUMN_MAP[csvKey]
+  const normalized = csvKey.toLowerCase().replace(/\s/g, '')
+  return COLUMN_MAP_LC[normalized] ?? csvKey
+}
+
 const INT_FIELDS = new Set([
   'edad', 'hora_numerica', 'tiempo_clasificacion_minutos',
   'tiempo_clasificacion_ingreso_minutos', 'tiempo_espera_consulta_inicial_minutos',
@@ -98,10 +109,12 @@ function parseLine(line: string, sep: string): string[] {
 }
 
 function detectSeparator(firstLine: string): string {
-  // Excel en español exporta con ; — detectar cuál produce más columnas
-  const commaCount = (firstLine.match(/,/g) ?? []).length
-  const semicolonCount = (firstLine.match(/;/g) ?? []).length
-  return semicolonCount > commaCount ? ';' : ','
+  const counts = {
+    ',': (firstLine.match(/,/g) ?? []).length,
+    ';': (firstLine.match(/;/g) ?? []).length,
+    '\t': (firstLine.match(/\t/g) ?? []).length,
+  }
+  return (Object.entries(counts).sort((a, b) => b[1] - a[1])[0][0]) as string
 }
 
 function parseCSV(text: string): { headers: string[]; rows: Record<string, string>[]; sep: string } {
@@ -122,17 +135,29 @@ function parseCSV(text: string): { headers: string[]; rows: Record<string, strin
 
 function normalizeDate(raw: string): string | null {
   if (!raw) return null
-  if (/^\d{4}-\d{2}-\d{2}/.test(raw)) return raw.substring(0, 10)
-  const m = raw.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/)
-  if (m) return `${m[3]}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}`
-  return raw
+  const s = raw.trim()
+  // ISO: 2024-01-15 or 2024-01-15T...
+  if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.substring(0, 10)
+  // DD/MM/YYYY or D/M/YYYY
+  const slash = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/)
+  if (slash) return `${slash[3]}-${slash[2].padStart(2, '0')}-${slash[1].padStart(2, '0')}`
+  // DD-MM-YYYY
+  const dash = s.match(/^(\d{1,2})-(\d{1,2})-(\d{4})/)
+  if (dash) return `${dash[3]}-${dash[2].padStart(2, '0')}-${dash[1].padStart(2, '0')}`
+  // Excel serial number (e.g. 45291)
+  if (/^\d{5}$/.test(s)) {
+    const epoch = new Date(Date.UTC(1899, 11, 30))
+    epoch.setUTCDate(epoch.getUTCDate() + parseInt(s, 10))
+    return epoch.toISOString().substring(0, 10)
+  }
+  return s
 }
 
 function mapRow(row: Record<string, string>): Record<string, unknown> | null {
   const rec: Record<string, unknown> = {}
   for (const [csvKey, value] of Object.entries(row)) {
     if (!value) continue
-    const field = COLUMN_MAP[csvKey] ?? csvKey
+    const field = resolveField(csvKey)
     if (SKIP_FIELDS.has(field)) continue
     if (INT_FIELDS.has(field)) {
       const n = parseInt(value, 10)
@@ -228,6 +253,8 @@ export default function ImportPage() {
   const [imports, setImports] = useState<ImportRecord[]>([])
   const [loadingHistory, setLoadingHistory] = useState(false)
   const [showHistory, setShowHistory] = useState(false)
+  const [diagHeaders, setDiagHeaders] = useState<string[]>([])
+  const [diagSep, setDiagSep] = useState('')
 
   const canImport = profile?.role === 'admin' || profile?.role === 'analyst'
   const isAdmin = profile?.role === 'admin'
@@ -263,7 +290,10 @@ export default function ImportPage() {
       return
     }
 
-    const { rows } = parseCSV(text)
+    const { rows, headers, sep } = parseCSV(text)
+    setDiagHeaders(headers)
+    setDiagSep(sep === '\t' ? 'TAB' : sep)
+
     if (rows.length === 0) {
       toast.error('El archivo no contiene filas de datos')
       setStep('idle')
@@ -279,7 +309,6 @@ export default function ImportPage() {
     }
 
     if (records.length === 0) {
-      toast.error('No se encontraron registros válidos (¿falta columna fecha_triage?)')
       setStep('idle')
       return
     }
@@ -335,6 +364,8 @@ export default function ImportPage() {
     setProgressLabel('')
     setImportResult(null)
     setShowConfirm(false)
+    setDiagHeaders([])
+    setDiagSep('')
   }
 
   // Perform import
@@ -500,6 +531,47 @@ export default function ImportPage() {
               </div>
             </>
           )}
+        </div>
+      )}
+
+      {/* Diagnostic panel — shown when file parsed but no valid records found */}
+      {step === 'idle' && diagHeaders.length > 0 && (
+        <div className="card p-5 space-y-3 border-amber-200 bg-amber-50">
+          <div className="flex items-start gap-2">
+            <AlertTriangle className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="font-semibold text-amber-800 text-sm">
+                No se encontró la columna <code className="bg-amber-100 px-1 rounded">fecha_triage</code>
+              </p>
+              <p className="text-amber-700 text-xs mt-1">
+                Separador detectado: <strong>{diagSep}</strong> · {diagHeaders.length} columnas encontradas
+              </p>
+            </div>
+          </div>
+          <div>
+            <p className="text-amber-700 text-xs font-medium mb-1.5">Columnas detectadas en el archivo:</p>
+            <div className="flex flex-wrap gap-1.5">
+              {diagHeaders.map(h => (
+                <span
+                  key={h}
+                  className={clsx(
+                    'text-xs px-2 py-0.5 rounded font-mono',
+                    resolveField(h) === 'fecha_triage'
+                      ? 'bg-green-100 text-green-800 ring-1 ring-green-400'
+                      : COLUMN_MAP[h] || COLUMN_MAP_LC[h.toLowerCase().replace(/\s/g, '')]
+                        ? 'bg-white text-slate-700 ring-1 ring-slate-300'
+                        : 'bg-amber-100 text-amber-700'
+                  )}
+                >
+                  {h}
+                </span>
+              ))}
+            </div>
+          </div>
+          <p className="text-amber-600 text-xs">
+            Las columnas en blanco/naranja no se reconocen. Descargue la plantilla CSV para ver el formato esperado.
+          </p>
+          <button onClick={reset} className="text-xs text-amber-700 underline">Limpiar</button>
         </div>
       )}
 

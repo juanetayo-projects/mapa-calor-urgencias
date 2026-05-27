@@ -401,18 +401,30 @@ export default function ImportPage() {
     const BATCH = 200
     let totalOk = 0
     let totalErr = 0
+    let firstError = ''
     const batches = Math.ceil(parsedRecords.length / BATCH)
 
     for (let b = 0; b < batches; b++) {
-      const chunk = parsedRecords
-        .slice(b * BATCH, (b + 1) * BATCH)
-        .map(r => ({ ...r, importacion_id: importId }))
+      // Note: importacion_id included only if column exists (migration 003)
+      // If column missing the insert still succeeds without it (field is ignored by Supabase
+      // when not present in the table — actual error is caught below)
+      const baseChunk = parsedRecords.slice(b * BATCH, (b + 1) * BATCH)
+      const chunk = baseChunk.map(r => ({ ...r, importacion_id: importId }))
 
       const { error } = await supabase.from('atenciones').insert(chunk)
       if (error) {
-        totalErr += chunk.length
+        if (error.message.includes('importacion_id')) {
+          // Migration 003 not run yet — retry without importacion_id
+          const chunkClean = baseChunk.map(({ importacion_id: _x, ...rest }) => rest) as Record<string, unknown>[]
+          const { error: e2 } = await supabase.from('atenciones').insert(chunkClean)
+          if (e2) { totalErr += baseChunk.length; if (!firstError) firstError = e2.message }
+          else totalOk += baseChunk.length
+        } else {
+          totalErr += baseChunk.length
+          if (!firstError) firstError = error.message
+        }
       } else {
-        totalOk += chunk.length
+        totalOk += baseChunk.length
       }
 
       const pct = Math.round(((b + 1) / batches) * 100)
@@ -420,8 +432,16 @@ export default function ImportPage() {
       setProgressLabel(`${totalOk} de ${parsedRecords.length} registros...`)
     }
 
-    // Update importacion record
-    await supabase
+    if (firstError && totalOk === 0) {
+      toast.error(`Error al insertar: ${firstError.substring(0, 120)}`)
+      await supabase.from('importaciones').update({ estado: 'failed', fecha_fin: new Date().toISOString() }).eq('id', importId)
+      setStep('ready')
+      await loadHistory()
+      return
+    }
+
+    // Update importacion record status
+    const { error: updErr } = await supabase
       .from('importaciones')
       .update({
         filas_importadas: totalOk,
@@ -430,6 +450,11 @@ export default function ImportPage() {
         fecha_fin: new Date().toISOString(),
       })
       .eq('id', importId)
+
+    if (updErr) {
+      // RLS missing — update via upsert approach won't work; just warn
+      console.warn('No se pudo actualizar el registro de importación:', updErr.message)
+    }
 
     setImportResult({ ok: totalOk, errors: totalErr })
     setStep('done')

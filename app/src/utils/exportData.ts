@@ -1,9 +1,17 @@
 import * as XLSX from 'xlsx'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
-import { formatHora, HORAS } from './heatmap'
+import { formatHora, getCellStyle, HORAS } from './heatmap'
 import { MESES } from '@/types'
 import type { Filtros } from '@/types'
+
+function hexToRgb(hex: string): [number, number, number] {
+  return [
+    parseInt(hex.slice(1, 3), 16),
+    parseInt(hex.slice(3, 5), 16),
+    parseInt(hex.slice(5, 7), 16),
+  ]
+}
 
 type GridMap = Record<number, Record<string | number, number>>
 
@@ -197,6 +205,10 @@ export async function semanalToPDFBase64(semanalData: SemanalRow[], filtros: Fil
   const colLabels = DIAS_ORDER
   const periodo = periodoTexto(filtros)
 
+  // Calcular valor máximo para la escala de colores
+  const maxValue = HORAS.reduce((mx, hora) =>
+    DIAS_ORDER.reduce((mx2, d) => Math.max(mx2, (grid[hora]?.[d] as number) ?? 0), mx), 0)
+
   const head = ['Hora', ...colLabels]
   const body = HORAS.map((hora) => [
     formatHora(hora),
@@ -253,10 +265,22 @@ export async function semanalToPDFBase64(semanalData: SemanalRow[], filtros: Fil
     headStyles: { fillColor: [30, 77, 140], textColor: 255, fontStyle: 'bold' },
     columnStyles: { 0: { halign: 'left', cellWidth: 20 } },
     didParseCell: (data) => {
+      // Fila de totales
       if (data.row.index === body.length) {
         data.cell.styles.fillColor = [240, 244, 251]
         data.cell.styles.fontStyle = 'bold'
         data.cell.styles.textColor = [30, 77, 140]
+        return
+      }
+      // Celdas de datos (columnas 1..7, no la columna de hora)
+      if (data.section === 'body' && data.column.index > 0) {
+        const raw = data.cell.raw
+        if (typeof raw === 'number' && raw > 0) {
+          const style = getCellStyle(raw, maxValue)
+          data.cell.styles.fillColor = hexToRgb(style.bg)
+          data.cell.styles.textColor = hexToRgb(style.text)
+          data.cell.styles.fontStyle = 'bold'
+        }
       }
     },
     margin: { left: 5, right: 5 },

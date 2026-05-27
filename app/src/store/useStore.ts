@@ -22,6 +22,7 @@ const defaultFiltros: Filtros = {
   diasSemana: [],
   semanaDelMes: null,
   triage: 'all',
+  destinoClasificacion: 'all',
   minutos: 30,
   vista: 'mensual',
 }

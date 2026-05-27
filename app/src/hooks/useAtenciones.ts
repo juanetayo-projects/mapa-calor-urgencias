@@ -5,7 +5,7 @@ import type { Filtros, HeatmapCell, StatsData } from '@/types'
 // ---- Heat map monthly (hours × calendar days) ----
 export function useHeatmapMensual(filtros: Filtros) {
   return useQuery({
-    queryKey: ['heatmap-mensual', filtros.anio, filtros.mes, filtros.diasSemana, filtros.semanaDelMes, filtros.triage],
+    queryKey: ['heatmap-mensual', filtros.anio, filtros.mes, filtros.diasSemana, filtros.semanaDelMes, filtros.triage, filtros.destinoClasificacion],
     queryFn: async () => {
       const { data, error } = await supabase.rpc('get_heatmap_data', {
         p_anio: filtros.anio,
@@ -13,6 +13,7 @@ export function useHeatmapMensual(filtros: Filtros) {
         p_dias_semana: filtros.diasSemana.length ? filtros.diasSemana : null,
         p_semana_mes: filtros.semanaDelMes,
         p_triage: filtros.triage === 'all' ? null : filtros.triage,
+        p_destino: filtros.destinoClasificacion === 'all' ? null : filtros.destinoClasificacion,
       })
       if (error) throw error
       return (data ?? []) as HeatmapCell[]
@@ -25,13 +26,14 @@ export function useHeatmapMensual(filtros: Filtros) {
 // ---- Heat map weekly (hours × day-of-week) ----
 export function useHeatmapSemanal(filtros: Filtros) {
   return useQuery({
-    queryKey: ['heatmap-semanal', filtros.anio, filtros.mes, filtros.semanaDelMes, filtros.triage],
+    queryKey: ['heatmap-semanal', filtros.anio, filtros.mes, filtros.semanaDelMes, filtros.triage, filtros.destinoClasificacion],
     queryFn: async () => {
       const { data, error } = await supabase.rpc('get_heatmap_semanal', {
         p_anio: filtros.anio,
         p_mes: filtros.mes,
         p_semana_mes: filtros.semanaDelMes,
         p_triage: filtros.triage === 'all' ? null : filtros.triage,
+        p_destino: filtros.destinoClasificacion === 'all' ? null : filtros.destinoClasificacion,
       })
       if (error) throw error
       return (data ?? []) as Array<{
@@ -92,6 +94,19 @@ export function useTriageDisponibles() {
       if (error) throw error
       const unique = [...new Set((data ?? []).map((r) => r.clasificacion_triage as string))]
       return unique.sort()
+    },
+    staleTime: 60 * 60_000,
+  })
+}
+
+// ---- Available destino_clasificacion values ----
+export function useDestinoDisponibles() {
+  return useQuery({
+    queryKey: ['destino-disponibles'],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc('get_destino_disponibles')
+      if (error) throw error
+      return (data ?? []) as Array<{ destino: string }>
     },
     staleTime: 60 * 60_000,
   })

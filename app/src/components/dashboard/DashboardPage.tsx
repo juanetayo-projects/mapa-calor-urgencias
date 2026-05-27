@@ -4,12 +4,13 @@ import FiltersPanel from './FiltersPanel'
 import StatsCards from './StatsCards'
 import HeatMap from './HeatMap'
 import WeeklyView from './WeeklyView'
+import ProfesionalesView from './ProfesionalesView'
 import { useStore } from '@/store/useStore'
 import { MESES } from '@/types'
-import { LayoutGrid, TableProperties } from 'lucide-react'
+import { LayoutGrid, TableProperties, Users } from 'lucide-react'
 import { clsx } from 'clsx'
 
-type Tab = 'heatmap' | 'semanal'
+type Tab = 'heatmap' | 'semanal' | 'profesionales'
 
 export default function DashboardPage() {
   const { filtros } = useStore()
@@ -20,15 +21,16 @@ export default function DashboardPage() {
     : `Año ${filtros.anio}`
 
   const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
-    { id: 'heatmap', label: 'Mapa de Calor', icon: <LayoutGrid className="w-3.5 h-3.5" /> },
-    { id: 'semanal', label: 'Resumen Semanal', icon: <TableProperties className="w-3.5 h-3.5" /> },
+    { id: 'heatmap',        label: 'Mapa de Calor',          icon: <LayoutGrid    className="w-3.5 h-3.5" /> },
+    { id: 'semanal',        label: 'Resumen Semanal',         icon: <TableProperties className="w-3.5 h-3.5" /> },
+    { id: 'profesionales',  label: 'Profesionales requeridos', icon: <Users        className="w-3.5 h-3.5" /> },
   ]
 
   return (
     <div className="flex flex-col h-full">
       <Header
         title="Mapa de Calor · Urgencias"
-        subtitle={`Clínica Santa Bárbara · ${periodoLabel}${filtros.triage !== 'all' ? ` · ${filtros.triage}` : ''}`}
+        subtitle={`Clínica Santa Bárbara · ${periodoLabel}${filtros.triage !== 'all' ? ` · ${filtros.triage}` : ''}${filtros.destinoClasificacion !== 'all' ? ` · ${filtros.destinoClasificacion}` : ''}`}
       />
 
       <div className="flex-1 p-3 flex flex-col gap-2 overflow-auto min-h-0">
@@ -59,8 +61,9 @@ export default function DashboardPage() {
 
         {/* Content */}
         <div className="flex-1 min-h-0">
-          {activeTab === 'heatmap' && <HeatMap />}
-          {activeTab === 'semanal' && <WeeklyView />}
+          {activeTab === 'heatmap'       && <HeatMap />}
+          {activeTab === 'semanal'       && <WeeklyView />}
+          {activeTab === 'profesionales' && <ProfesionalesView />}
         </div>
       </div>
     </div>

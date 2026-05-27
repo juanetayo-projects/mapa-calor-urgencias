@@ -54,7 +54,11 @@ const COLUMN_MAP: Record<string, string> = {
   ProfesionalConsultaInicialUrgencias: 'profesional_consulta_inicial',
   FechaConsultaInicialUrgencias: 'fecha_consulta_inicial',
   HoraConsultaInicialUrgencias: 'hora_consulta_inicial',
+  HoraInicioConsultaInicialUrgencias: 'hora_consulta_inicial',  // variante ABRI
+  HoraFinConsultaInicialUrgencias: '_skip_hora_fin_consulta',   // ignorar
+  DuracionConsultaMinutos: '_skip_duracion_consulta',           // ignorar
   'TiempoEsperaConsultaInicial(minutos)': 'tiempo_espera_consulta_inicial_minutos',
+  'TiempoEsperaConsultaInicial(minutos) - DesdeLaClasificacion': 'tiempo_espera_consulta_inicial_minutos',
   DestinoConsultaInicialUrgencias: 'destino_consulta_inicial',
   ProfesionalPrimeraEvolucionUrgencias: 'profesional_primera_evolucion',
   FechaPrimeraEvolucionUrgencias: 'fecha_primera_evolucion',
@@ -87,6 +91,7 @@ const FLOAT_FIELDS = new Set(['tiempo_revaloracion_horas', 'tiempo_urgencias_int
 const SKIP_FIELDS = new Set([
   'id', 'dia_numero', 'mes_numero', 'anio_numero', 'semana_del_mes',
   'tipo_dia', 'created_at', 'updated_at', '#dia', 'mes', 'importacion_id',
+  '_skip_hora_fin_consulta', '_skip_duracion_consulta',
 ])
 
 // ---- CSV utilities ----
@@ -133,18 +138,52 @@ function parseCSV(text: string): { headers: string[]; rows: Record<string, strin
   return { headers, rows, sep }
 }
 
-function normalizeDate(raw: string): string | null {
+// Detecta si el archivo usa M/D/YYYY (americano) o D/M/YYYY (colombiano)
+// escanea las columnas de fecha buscando un valor con segundo componente > 12,
+// lo que demuestra inequívocamente que el primer componente es el mes.
+function detectDateFormat(rows: Record<string, string>[]): 'MDY' | 'DMY' {
+  const dateCols = ['FechaTriage', 'FechaClasificacion', 'FechaEgreso', 'FechaIngreso']
+  for (const row of rows) {
+    for (const col of dateCols) {
+      const val = (row[col] ?? '').trim()
+      const m = val.match(/^(\d{1,2})\/(\d{1,2})\/\d{4}$/)
+      if (m) {
+        const a = parseInt(m[1], 10), b = parseInt(m[2], 10)
+        if (b > 12) return 'MDY'   // segundo > 12 → es día → formato M/D/YYYY
+        if (a > 12) return 'DMY'   // primero > 12 → es día → formato D/M/YYYY
+      }
+    }
+  }
+  return 'DMY' // por defecto Colombia (D/M/YYYY)
+}
+
+function normalizeDate(raw: string, fmt: 'MDY' | 'DMY' = 'DMY'): string | null {
   if (!raw) return null
   const s = raw.trim()
-  // ISO: 2024-01-15 or 2024-01-15T...
+  // ISO: 2024-01-15 o 2024-01-15T...
   if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.substring(0, 10)
-  // DD/MM/YYYY or D/M/YYYY
-  const slash = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/)
-  if (slash) return `${slash[3]}-${slash[2].padStart(2, '0')}-${slash[1].padStart(2, '0')}`
-  // DD-MM-YYYY
-  const dash = s.match(/^(\d{1,2})-(\d{1,2})-(\d{4})/)
-  if (dash) return `${dash[3]}-${dash[2].padStart(2, '0')}-${dash[1].padStart(2, '0')}`
-  // Excel serial number (e.g. 45291)
+  // Formato con barra: M/D/YYYY o D/M/YYYY
+  const slash = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/)
+  if (slash) {
+    const [a, b, y] = [slash[1], slash[2], slash[3]]
+    const ai = parseInt(a, 10), bi = parseInt(b, 10)
+    // Si algún componente supera 12, el formato queda determinado unívocamente
+    const useMDY = fmt === 'MDY' || bi > 12
+    const useDMY = fmt === 'DMY' && ai > 12
+    const [mes, dia] = (useMDY && !useDMY) ? [a, b] : [b, a]
+    return `${y}-${mes.padStart(2, '0')}-${dia.padStart(2, '0')}`
+  }
+  // Formato con guión: DD-MM-YYYY
+  const dash = s.match(/^(\d{1,2})-(\d{1,2})-(\d{4})$/)
+  if (dash) {
+    const [a, b, y] = [dash[1], dash[2], dash[3]]
+    const ai = parseInt(a, 10), bi = parseInt(b, 10)
+    const useMDY = fmt === 'MDY' || bi > 12
+    const useDMY = fmt === 'DMY' && ai > 12
+    const [mes, dia] = (useMDY && !useDMY) ? [a, b] : [b, a]
+    return `${y}-${mes.padStart(2, '0')}-${dia.padStart(2, '0')}`
+  }
+  // Número serial de Excel (ej. 45291)
   if (/^\d{5}$/.test(s)) {
     const epoch = new Date(Date.UTC(1899, 11, 30))
     epoch.setUTCDate(epoch.getUTCDate() + parseInt(s, 10))
@@ -153,12 +192,12 @@ function normalizeDate(raw: string): string | null {
   return s
 }
 
-function mapRow(row: Record<string, string>): Record<string, unknown> | null {
+function mapRow(row: Record<string, string>, fmt: 'MDY' | 'DMY'): Record<string, unknown> | null {
   const rec: Record<string, unknown> = {}
   for (const [csvKey, value] of Object.entries(row)) {
     if (!value) continue
     const field = resolveField(csvKey)
-    if (SKIP_FIELDS.has(field)) continue
+    if (SKIP_FIELDS.has(field) || field.startsWith('_skip_')) continue
     if (INT_FIELDS.has(field)) {
       const n = parseInt(value, 10)
       rec[field] = isNaN(n) ? null : n
@@ -166,9 +205,9 @@ function mapRow(row: Record<string, string>): Record<string, unknown> | null {
       const n = parseFloat(value.replace(',', '.'))
       rec[field] = isNaN(n) ? null : n
     } else if (field === 'paciente_no_responde') {
-      rec[field] = ['1', 'true', 'si', 'sí', 'True', 'TRUE'].includes(value)
+      rec[field] = ['1', 'true', 'si', 'sí', 'True', 'TRUE', 'X', 'x'].includes(value)
     } else if (field === 'fecha_triage' || field.startsWith('fecha_')) {
-      rec[field] = normalizeDate(value)
+      rec[field] = normalizeDate(value, fmt)
     } else {
       rec[field] = value || null
     }
@@ -300,10 +339,13 @@ export default function ImportPage() {
       return
     }
 
+    // Detectar formato de fecha del archivo (M/D/YYYY americano vs D/M/YYYY colombiano)
+    const dateFmt = detectDateFormat(rows)
+
     const records: Record<string, unknown>[] = []
     let skipped = 0
     for (const row of rows) {
-      const rec = mapRow(row)
+      const rec = mapRow(row, dateFmt)
       if (rec) records.push(rec)
       else skipped++
     }

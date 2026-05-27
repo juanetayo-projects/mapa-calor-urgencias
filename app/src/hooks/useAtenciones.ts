@@ -94,8 +94,8 @@ export function useTriageDisponibles() {
     queryFn: async () => {
       const { data, error } = await supabase.rpc('get_clasificacion_disponibles')
       if (error) throw error
-      return ((data ?? []) as Array<{ clasificacion_triage: string }>)
-        .map((r) => r.clasificacion_triage)
+      return ((data ?? []) as Array<{ clasificacion: string }>)
+        .map((r) => r.clasificacion)
         .filter(Boolean)
         .sort()
     },
@@ -111,10 +111,10 @@ export function useDestinoDisponibles() {
     queryFn: async () => {
       const { data, error } = await supabase.rpc('get_destino_disponibles')
       if (error) throw error
-      return ((data ?? []) as Array<{ destino_clasificacion: string }>)
-        .filter((r) => Boolean(r.destino_clasificacion))
-        .sort((a, b) => a.destino_clasificacion.localeCompare(b.destino_clasificacion))
-        .map((r) => ({ destino: r.destino_clasificacion }))
+      return ((data ?? []) as Array<{ destino: string }>)
+        .filter((r) => Boolean(r.destino))
+        .sort((a, b) => a.destino.localeCompare(b.destino))
+        .map((r) => ({ destino: r.destino }))
     },
     staleTime: 60 * 60_000,
   })
@@ -128,8 +128,8 @@ export function useUbicacionDisponibles() {
     queryFn: async () => {
       const { data, error } = await supabase.rpc('get_ubicacion_disponibles')
       if (error) throw error
-      return ((data ?? []) as Array<{ ubicacion_triage: string }>)
-        .map((r) => r.ubicacion_triage)
+      return ((data ?? []) as Array<{ ubicacion: string }>)
+        .map((r) => r.ubicacion)
         .filter(Boolean)
         .sort()
     },

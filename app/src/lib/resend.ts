@@ -70,8 +70,20 @@ export function buildReportHtml(params: {
 <body>
   <div class="container">
     <div class="header">
-      <h1>${params.titulo}</h1>
-      <p style="margin:4px 0 0;opacity:0.85;font-size:14px;">${params.clinicaNombre ?? 'Clínica Santa Bárbara'} &mdash; ${params.periodo}</p>
+      <div style="display:flex;align-items:center;gap:16px;margin-bottom:10px;">
+        <img src="https://juanetayo-projects.github.io/mapa-calor-urgencias/logo.png"
+             alt="Clínica Santa Bárbara" style="height:48px;width:auto;" />
+        <div>
+          <div style="font-size:11px;opacity:0.8;letter-spacing:0.5px;text-transform:uppercase;">
+            ${params.clinicaNombre ?? 'Clínica Santa Bárbara de Alta Complejidad'}
+          </div>
+          <div style="font-size:13px;font-weight:600;margin-top:2px;">
+            Sistema de Mapa de Calor · Urgencias
+          </div>
+        </div>
+      </div>
+      <h1 style="margin:0 0 4px;">${params.titulo}</h1>
+      <p style="margin:0;opacity:0.85;font-size:14px;">${params.periodo}</p>
     </div>
     <div class="content">
       <div class="stats">

@@ -57,19 +57,17 @@ export default function ReportsPage() {
 
     setSending(true)
 
-    // Build table rows
-    const tableRows = (semanalData ?? [])
-      .filter((_, i) => i < 24)
-      .reduce<Record<number, number>>((acc, r) => {
-        acc[r.hora] = (acc[r.hora] ?? 0) + r.total
-        return acc
-      }, {})
+    // Agregar totales por hora (todas las 24 horas, sumando todos los días)
+    const horaMap: Record<number, number> = {}
+    ;(semanalData ?? []).forEach((r) => {
+      horaMap[r.hora] = (horaMap[r.hora] ?? 0) + r.total
+    })
 
-    const rowsHtml = Object.entries(tableRows)
-      .sort(([a], [b]) => Number(a) - Number(b))
-      .map(([hora, total]) => {
-        const profs = calcProfesionales(total, filtros.minutos)
-        return `<tr><td>${formatHora(Number(hora))}</td><td>${total}</td><td>${profs}</td></tr>`
+    const rowsHtml = Array.from({ length: 24 }, (_, h) => h)
+      .map((hora) => {
+        const total = horaMap[hora] ?? 0
+        const profs = total > 0 ? calcProfesionales(total, filtros.minutos) : 0
+        return `<tr><td>${formatHora(hora)}</td><td>${total > 0 ? total : '—'}</td><td>${profs > 0 ? profs : '—'}</td></tr>`
       })
       .join('')
 

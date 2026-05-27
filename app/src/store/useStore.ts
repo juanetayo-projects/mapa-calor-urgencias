@@ -44,6 +44,15 @@ export const useStore = create<AppState>()(
     {
       name: 'mcu-store',
       partialize: (s) => ({ filtros: s.filtros, sidebarCollapsed: s.sidebarCollapsed }),
+      // Ensure new fields added to defaultFiltros are not lost when upgrading persisted state
+      merge: (persisted, current) => ({
+        ...current,
+        ...(persisted as Partial<AppState>),
+        filtros: {
+          ...defaultFiltros,
+          ...(persisted as AppState)?.filtros,
+        },
+      }),
     }
   )
 )

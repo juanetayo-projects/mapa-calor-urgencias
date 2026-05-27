@@ -45,11 +45,11 @@ function buildTableData(grid: GridMap, columns: Array<number | string>, colLabel
   return { head, body, totals }
 }
 
-/** Carga el logo como base64 para el PDF */
-async function loadLogoBase64(): Promise<string | null> {
+/** Carga el logo blanco (para fondos oscuros) */
+async function loadWhiteLogoBase64(): Promise<string | null> {
   try {
     const base = import.meta.env.BASE_URL ?? '/'
-    const response = await fetch(`${base}logo.png`)
+    const response = await fetch(`${base}logo-white.png`)
     if (!response.ok) return null
     const blob = await response.blob()
     return new Promise((resolve) => {
@@ -81,19 +81,47 @@ export function exportToExcel(
   filtros: Filtros,
 ) {
   const { head, body, totals } = buildTableData(grid, columns, colLabels)
+  const periodo = periodoTexto(filtros)
+  const numCols = head.length - 1 // excluye columna Hora
+
   const wb = XLSX.utils.book_new()
-  const ws = XLSX.utils.aoa_to_sheet([head, ...body, totals])
-  ws['!cols'] = head.map((_, i) => ({ wch: i === 0 ? 14 : 6 }))
+
+  // Hoja 1: Detalle hora × día
+  const ws = XLSX.utils.aoa_to_sheet([
+    ['Sistema de Mapa de Calor · Urgencias'],
+    ['Clínica Santa Bárbara de Alta Complejidad'],
+    [`Período: ${periodo}${filtros.triage !== 'all' ? '  ·  Clasificación Triage: ' + filtros.triage : ''}${(filtros.destinoClasificacion ?? 'all') !== 'all' ? '  ·  Destino: ' + filtros.destinoClasificacion : ''}`],
+    [],
+    head,
+    ...body,
+    totals,
+  ])
+  // Ancho de columnas
+  ws['!cols'] = [{ wch: 14 }, ...Array(numCols).fill({ wch: 6 })]
+  // Merge filas de título
+  ws['!merges'] = [
+    { s: { r: 0, c: 0 }, e: { r: 0, c: numCols } },
+    { s: { r: 1, c: 0 }, e: { r: 1, c: numCols } },
+    { s: { r: 2, c: 0 }, e: { r: 2, c: numCols } },
+  ]
   XLSX.utils.book_append_sheet(wb, ws, 'Mapa de Calor')
 
+  // Hoja 2: Resumen por columna
   const summaryData = [
+    ['Sistema de Mapa de Calor · Urgencias · Clínica Santa Bárbara'],
+    [`Período: ${periodo}`],
+    [],
     ['Columna', 'Total atenciones'],
     ...columns.map((col, i) => [
       colLabels[i],
       HORAS.reduce((s, h) => s + ((grid[h]?.[col as keyof GridMap[number]] as number) ?? 0), 0),
     ]),
   ]
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(summaryData), 'Resumen')
+  const ws2 = XLSX.utils.aoa_to_sheet(summaryData)
+  ws2['!cols'] = [{ wch: 16 }, { wch: 18 }]
+  ws2['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 1 } }]
+  XLSX.utils.book_append_sheet(wb, ws2, 'Resumen')
+
   XLSX.writeFile(wb, `MapaCalor_${periodoLabel(filtros)}.xlsx`)
 }
 
@@ -149,6 +177,16 @@ export async function exportToPDF(
   filtros: Filtros,
 ) {
   const { head, body, totals } = buildTableData(grid, columns, colLabels)
+
+  // Valor máximo para la escala de colores
+  let maxValue = 0
+  for (const h of HORAS) {
+    for (const col of columns) {
+      const v = (grid[h]?.[col as keyof GridMap[number]] as number) ?? 0
+      if (v > maxValue) maxValue = v
+    }
+  }
+
   const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' })
   const pageW = doc.internal.pageSize.width
   const pageH = doc.internal.pageSize.height
@@ -157,7 +195,7 @@ export async function exportToPDF(
   doc.setFillColor(30, 77, 140)
   doc.rect(0, 0, pageW, headerH, 'F')
 
-  const logoBase64 = await loadLogoBase64()
+  const logoBase64 = await loadWhiteLogoBase64()
   if (logoBase64) doc.addImage(logoBase64, 'PNG', 5, 2, 38, 18)
 
   const textX = logoBase64 ? 48 : 8
@@ -181,10 +219,22 @@ export async function exportToPDF(
     headStyles: { fillColor: [30, 77, 140], textColor: 255, fontStyle: 'bold', fontSize: 7 },
     columnStyles: { 0: { halign: 'left', cellWidth: 18 } },
     didParseCell: (data) => {
+      // Fila de totales
       if (data.row.index === body.length) {
         data.cell.styles.fillColor = [240, 244, 251]
         data.cell.styles.fontStyle = 'bold'
         data.cell.styles.textColor = [30, 77, 140]
+        return
+      }
+      // Celdas de datos con color del mapa de calor
+      if (data.section === 'body' && data.column.index > 0) {
+        const raw = data.cell.raw
+        if (typeof raw === 'number' && raw > 0) {
+          const style = getCellStyle(raw, maxValue)
+          data.cell.styles.fillColor = hexToRgb(style.bg)
+          data.cell.styles.textColor = hexToRgb(style.text)
+          data.cell.styles.fontStyle = 'bold'
+        }
       }
     },
     margin: { left: 5, right: 5 },

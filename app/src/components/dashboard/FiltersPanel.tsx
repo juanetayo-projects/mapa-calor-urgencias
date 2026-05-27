@@ -103,9 +103,9 @@ export default function FiltersPanel() {
           </select>
         </div>
 
-        {/* Triage */}
+        {/* Clasificación Triage */}
         <div className="flex items-center gap-1">
-          <label className="text-[10px] font-medium text-slate-400 whitespace-nowrap">Triage</label>
+          <label className="text-[10px] font-medium text-slate-400 whitespace-nowrap">Clasificación</label>
           <select
             className="filter-select py-1 text-xs"
             value={filtros.triage}

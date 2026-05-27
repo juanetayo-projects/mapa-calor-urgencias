@@ -4,17 +4,21 @@ import type { Filtros, HeatmapCell, StatsData } from '@/types'
 
 // ---- Heat map monthly (hours × calendar days) ----
 export function useHeatmapMensual(filtros: Filtros) {
+  const destino = (filtros.destinoClasificacion ?? 'all') === 'all'
+    ? null : filtros.destinoClasificacion
   return useQuery({
-    queryKey: ['heatmap-mensual', filtros.anio, filtros.mes, filtros.diasSemana, filtros.semanaDelMes, filtros.triage, filtros.destinoClasificacion],
+    queryKey: ['heatmap-mensual', filtros.anio, filtros.mes, filtros.diasSemana, filtros.semanaDelMes, filtros.triage, destino],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc('get_heatmap_data', {
+      // Include p_destino only when set (requires migration 005); omitting it keeps old RPC working
+      const params: Record<string, unknown> = {
         p_anio: filtros.anio,
         p_mes: filtros.mes,
         p_dias_semana: filtros.diasSemana.length ? filtros.diasSemana : null,
         p_semana_mes: filtros.semanaDelMes,
         p_triage: filtros.triage === 'all' ? null : filtros.triage,
-        p_destino: filtros.destinoClasificacion === 'all' ? null : filtros.destinoClasificacion,
-      })
+      }
+      if (destino !== null) params.p_destino = destino
+      const { data, error } = await supabase.rpc('get_heatmap_data', params)
       if (error) throw error
       return (data ?? []) as HeatmapCell[]
     },
@@ -25,16 +29,19 @@ export function useHeatmapMensual(filtros: Filtros) {
 
 // ---- Heat map weekly (hours × day-of-week) ----
 export function useHeatmapSemanal(filtros: Filtros) {
+  const destino = (filtros.destinoClasificacion ?? 'all') === 'all'
+    ? null : filtros.destinoClasificacion
   return useQuery({
-    queryKey: ['heatmap-semanal', filtros.anio, filtros.mes, filtros.semanaDelMes, filtros.triage, filtros.destinoClasificacion],
+    queryKey: ['heatmap-semanal', filtros.anio, filtros.mes, filtros.semanaDelMes, filtros.triage, destino],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc('get_heatmap_semanal', {
+      const params: Record<string, unknown> = {
         p_anio: filtros.anio,
         p_mes: filtros.mes,
         p_semana_mes: filtros.semanaDelMes,
         p_triage: filtros.triage === 'all' ? null : filtros.triage,
-        p_destino: filtros.destinoClasificacion === 'all' ? null : filtros.destinoClasificacion,
-      })
+      }
+      if (destino !== null) params.p_destino = destino
+      const { data, error } = await supabase.rpc('get_heatmap_semanal', params)
       if (error) throw error
       return (data ?? []) as Array<{
         hora: number
@@ -104,9 +111,17 @@ export function useDestinoDisponibles() {
   return useQuery({
     queryKey: ['destino-disponibles'],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc('get_destino_disponibles')
+      const { data, error } = await supabase
+        .from('atenciones')
+        .select('destino_clasificacion')
+        .not('destino_clasificacion', 'is', null)
+        .order('destino_clasificacion')
+        .limit(2000)
       if (error) throw error
-      return (data ?? []) as Array<{ destino: string }>
+      const unique = [
+        ...new Set((data ?? []).map((r) => r.destino_clasificacion as string)),
+      ].filter(Boolean).sort()
+      return unique.map((destino) => ({ destino }))
     },
     staleTime: 60 * 60_000,
   })

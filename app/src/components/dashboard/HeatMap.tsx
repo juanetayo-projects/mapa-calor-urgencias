@@ -113,8 +113,8 @@ export default function HeatMap() {
   function handleExcelExport() {
     exportToExcel(grid, columns, colLabels, filtros)
   }
-  function handlePDFExport() {
-    exportToPDF(grid, columns, colLabels, filtros)
+  async function handlePDFExport() {
+    await exportToPDF(grid, columns, colLabels, filtros)
   }
 
   // Max value for color scale

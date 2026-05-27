@@ -36,6 +36,25 @@ function buildTableData(
   return { head, body, totals }
 }
 
+/** Carga el logo de la clínica como base64 para incrustar en el PDF */
+async function loadLogoBase64(): Promise<string | null> {
+  try {
+    const base = import.meta.env.BASE_URL ?? '/'
+    const url = `${base}logo.png`
+    const response = await fetch(url)
+    if (!response.ok) return null
+    const blob = await response.blob()
+    return new Promise((resolve) => {
+      const reader = new FileReader()
+      reader.onloadend = () => resolve(reader.result as string)
+      reader.onerror = () => resolve(null)
+      reader.readAsDataURL(blob)
+    })
+  } catch {
+    return null
+  }
+}
+
 // ─── Excel ────────────────────────────────────────────────────────────────────
 export function exportToExcel(
   grid: GridMap,
@@ -51,13 +70,6 @@ export function exportToExcel(
 
   // Column widths
   ws['!cols'] = head.map((_, i) => ({ wch: i === 0 ? 14 : 6 }))
-
-  // Bold totals row
-  const totalRowIdx = wsData.length - 1
-  columns.forEach((_, ci) => {
-    const cellRef = XLSX.utils.encode_cell({ r: totalRowIdx, c: ci + 1 })
-    if (ws[cellRef]) ws[cellRef].s = { font: { bold: true } }
-  })
 
   XLSX.utils.book_append_sheet(wb, ws, 'Mapa de Calor')
 
@@ -79,7 +91,7 @@ export function exportToExcel(
 }
 
 // ─── PDF ──────────────────────────────────────────────────────────────────────
-export function exportToPDF(
+export async function exportToPDF(
   grid: GridMap,
   columns: Array<number | string>,
   colLabels: string[],
@@ -88,30 +100,56 @@ export function exportToPDF(
   const { head, body, totals } = buildTableData(grid, columns, colLabels)
 
   const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' })
+  const pageW = doc.internal.pageSize.width   // 297 mm
+  const pageH = doc.internal.pageSize.height  // 210 mm
+  const headerH = 22
 
-  // Header
+  // ── Encabezado azul ──────────────────────────────────────────────────────────
   doc.setFillColor(30, 77, 140)
-  doc.rect(0, 0, 297, 18, 'F')
-  doc.setTextColor(255, 255, 255)
-  doc.setFontSize(12)
-  doc.text('Mapa de Calor · Urgencias · Clínica Santa Bárbara', 10, 11)
-  doc.setFontSize(9)
-  doc.text(
-    `Período: ${filtros.mes ? `${MESES[filtros.mes]} ${filtros.anio}` : `Año ${filtros.anio}`}${filtros.triage !== 'all' ? '  ·  Triage: ' + filtros.triage : ''}`,
-    10,
-    16,
-  )
+  doc.rect(0, 0, pageW, headerH, 'F')
 
-  // Table
+  // Logo de la clínica (intento cargar; si falla, solo texto)
+  const logoBase64 = await loadLogoBase64()
+  if (logoBase64) {
+    // Logo a la izquierda, fondo azul → logo blanco se ve bien
+    doc.addImage(logoBase64, 'PNG', 5, 2, 38, 18)
+  }
+
+  // Textos del encabezado
+  const textX = logoBase64 ? 48 : 8
+  doc.setTextColor(255, 255, 255)
+  doc.setFontSize(13)
+  doc.setFont('helvetica', 'bold')
+  doc.text('Mapa de Calor · Urgencias', textX, 10)
+
+  doc.setFontSize(8.5)
+  doc.setFont('helvetica', 'normal')
+  doc.text('Clínica Santa Bárbara de Alta Complejidad', textX, 16)
+
+  // Periodo a la derecha
+  const periodo = filtros.mes
+    ? `${MESES[filtros.mes]} ${filtros.anio}`
+    : `Año ${filtros.anio}`
+  const triageLabel = filtros.triage !== 'all' ? `  ·  Triage: ${filtros.triage}` : ''
+  doc.setFontSize(8)
+  const periodoText = `Período: ${periodo}${triageLabel}`
+  const periodoW = doc.getTextWidth(periodoText)
+  doc.text(periodoText, pageW - periodoW - 5, 16)
+
+  // ── Tabla ─────────────────────────────────────────────────────────────────────
   autoTable(doc, {
     head: [head],
     body: [...body, totals],
-    startY: 21,
+    startY: headerH + 2,
     styles: { fontSize: 6.5, cellPadding: 1.2, halign: 'center' },
-    headStyles: { fillColor: [30, 77, 140], textColor: 255, fontStyle: 'bold', fontSize: 7 },
+    headStyles: {
+      fillColor: [30, 77, 140],
+      textColor: 255,
+      fontStyle: 'bold',
+      fontSize: 7,
+    },
     columnStyles: { 0: { halign: 'left', cellWidth: 18 } },
     didParseCell: (data) => {
-      // Highlight totals row
       if (data.row.index === body.length) {
         data.cell.styles.fillColor = [240, 244, 251]
         data.cell.styles.fontStyle = 'bold'
@@ -121,15 +159,12 @@ export function exportToPDF(
     margin: { left: 5, right: 5 },
   })
 
-  // Footer
-  const pageH = doc.internal.pageSize.height
+  // ── Pie de página ─────────────────────────────────────────────────────────────
   doc.setTextColor(148, 163, 184)
-  doc.setFontSize(7)
-  doc.text(
-    `Generado: ${new Date().toLocaleString('es-CO')}`,
-    5,
-    pageH - 4,
-  )
+  doc.setFontSize(6.5)
+  doc.setFont('helvetica', 'normal')
+  doc.text(`Generado: ${new Date().toLocaleString('es-CO')}`, 5, pageH - 3)
+  doc.text('Mapa de Calor Urgencias · Clínica Santa Bárbara', pageW / 2, pageH - 3, { align: 'center' })
 
   doc.save(`MapaCalor_${periodoLabel(filtros)}.pdf`)
 }

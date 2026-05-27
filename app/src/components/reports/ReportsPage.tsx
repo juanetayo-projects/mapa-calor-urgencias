@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import { sendEmail, buildReportHtml } from '@/lib/resend'
+import { semanalToExcelBase64, semanalToPDFBase64 } from '@/utils/exportData'
 import Header from '@/components/layout/Header'
 import { useStore } from '@/store/useStore'
 import { useStats, useHeatmapSemanal } from '@/hooks/useAtenciones'
@@ -57,19 +58,14 @@ export default function ReportsPage() {
 
     setSending(true)
 
-    // Agregar totales por hora (todas las 24 horas, sumando todos los días)
-    const horaMap: Record<number, number> = {}
-    ;(semanalData ?? []).forEach((r) => {
-      horaMap[r.hora] = (horaMap[r.hora] ?? 0) + r.total
-    })
+    const emailSubject = subject || `Reporte Mapa de Calor Urgencias · ${periodoLabel}`
 
-    const rowsHtml = Array.from({ length: 24 }, (_, h) => h)
-      .map((hora) => {
-        const total = horaMap[hora] ?? 0
-        const profs = total > 0 ? calcProfesionales(total, filtros.minutos) : 0
-        return `<tr><td>${formatHora(hora)}</td><td>${total > 0 ? total : '—'}</td><td>${profs > 0 ? profs : '—'}</td></tr>`
-      })
-      .join('')
+    // Generar adjuntos Excel y PDF
+    const semanal = semanalData ?? []
+    const nombreArchivo = `MapaCalor_${filtros.mes ? periodoLabel.replace(' ', '_') : 'Año_' + filtros.anio}`
+
+    const excelBase64 = semanalToExcelBase64(semanal, filtros)
+    const pdfBase64   = await semanalToPDFBase64(semanal, filtros)
 
     const html = buildReportHtml({
       titulo: `Reporte de Urgencias · ${periodoLabel}`,
@@ -77,15 +73,17 @@ export default function ReportsPage() {
       totalAtenciones: stats?.total_atenciones ?? 0,
       picoHora: stats?.pico_hora ?? 0,
       promedioDia: stats?.promedio_dia ?? 0,
-      tableRows: rowsHtml,
+      hasAttachments: true,
     })
-
-    const emailSubject = subject || `Reporte Mapa de Calor Urgencias · ${periodoLabel}`
 
     const result = await sendEmail({
       to: validRecipients,
       subject: emailSubject,
       html,
+      attachments: [
+        { filename: `${nombreArchivo}.xlsx`, content: excelBase64 },
+        { filename: `${nombreArchivo}.pdf`,  content: pdfBase64  },
+      ],
     })
 
     // Log to DB

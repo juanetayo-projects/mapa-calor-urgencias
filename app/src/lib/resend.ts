@@ -1,10 +1,16 @@
 import { supabase } from './supabase'
 
+export interface EmailAttachment {
+  filename: string
+  content: string // base64
+}
+
 export interface EmailPayload {
   to: string[]
   subject: string
   html: string
   replyTo?: string
+  attachments?: EmailAttachment[]
 }
 
 export async function sendEmail(payload: EmailPayload): Promise<{ success: boolean; error?: string }> {
@@ -14,12 +20,11 @@ export async function sendEmail(payload: EmailPayload): Promise<{ success: boole
     })
 
     if (error) {
-      // Edge Function no desplegada → dar instrucciones claras
       const msg = error.message ?? String(error)
       if (msg.includes('Failed to send') || msg.includes('fetch') || msg.includes('404')) {
         return {
           success: false,
-          error: 'Edge Function "send-report" no desplegada. Ir a Supabase → Edge Functions → crear "send-report" con el código en supabase/functions/send-report/index.ts',
+          error: 'Edge Function "send-report" no disponible. Verificar en Supabase → Edge Functions.',
         }
       }
       throw error
@@ -36,76 +41,84 @@ export async function sendEmail(payload: EmailPayload): Promise<{ success: boole
   }
 }
 
+const LOGO_URL = 'https://juanetayo-projects.github.io/mapa-calor-urgencias/logo-white.png'
+
 export function buildReportHtml(params: {
   titulo: string
   periodo: string
   totalAtenciones: number
   picoHora: number
   promedioDia: number
-  tableRows: string
   clinicaNombre?: string
+  hasAttachments?: boolean
 }): string {
+  const clinica = params.clinicaNombre ?? 'Clínica Santa Bárbara de Alta Complejidad'
   return `
 <!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <style>
-    body { font-family: Arial, sans-serif; color: #1e293b; background: #f8fafc; margin: 0; padding: 0; }
-    .container { max-width: 640px; margin: 0 auto; padding: 32px 16px; }
-    .header { background: #1e4d8c; color: white; padding: 24px 32px; border-radius: 12px 12px 0 0; }
-    .header h1 { margin: 8px 0 0; font-size: 20px; }
-    .content { background: white; padding: 24px 32px; border: 1px solid #e2e8f0; }
-    .stats { display: flex; gap: 16px; margin: 16px 0; }
-    .stat { flex: 1; background: #f0f4fb; padding: 16px; border-radius: 8px; text-align: center; }
-    .stat .val { font-size: 28px; font-weight: 700; color: #1e4d8c; }
-    .stat .lbl { font-size: 12px; color: #64748b; margin-top: 4px; }
-    table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 13px; }
-    th { background: #1e4d8c; color: white; padding: 8px 12px; text-align: left; }
-    td { padding: 7px 12px; border-bottom: 1px solid #e2e8f0; }
-    tr:nth-child(even) td { background: #f8fafc; }
-    .footer { background: #f8fafc; padding: 16px 32px; border: 1px solid #e2e8f0; border-top: 0; border-radius: 0 0 12px 12px; font-size: 12px; color: #94a3b8; text-align: center; }
+    body { font-family: Arial, sans-serif; color: #1e293b; background: #f1f5f9; margin: 0; padding: 0; }
+    .wrap { max-width: 600px; margin: 24px auto; }
+    .header { background: #1e4d8c; color: white; padding: 20px 28px; border-radius: 12px 12px 0 0; }
+    .logo-row { display: flex; align-items: center; gap: 14px; margin-bottom: 12px; }
+    .logo-row img { height: 44px; width: auto; }
+    .logo-text { font-size: 11px; opacity: 0.8; letter-spacing: 0.4px; text-transform: uppercase; }
+    .logo-sys  { font-size: 13px; font-weight: 600; margin-top: 2px; }
+    .header h1 { margin: 0 0 4px; font-size: 20px; }
+    .header p  { margin: 0; font-size: 13px; opacity: 0.85; }
+    .body  { background: white; padding: 24px 28px; border: 1px solid #e2e8f0; }
+    .kpis  { display: flex; gap: 12px; margin: 0 0 20px; }
+    .kpi   { flex: 1; background: #f0f4fb; border-radius: 10px; padding: 14px; text-align: center; }
+    .kpi .val { font-size: 26px; font-weight: 700; color: #1e4d8c; }
+    .kpi .lbl { font-size: 11px; color: #64748b; margin-top: 3px; }
+    .attach-box { background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 8px;
+                  padding: 12px 16px; margin: 0; display: flex; align-items: center; gap: 10px; }
+    .attach-icon { font-size: 24px; }
+    .attach-text { font-size: 13px; color: #0369a1; }
+    .attach-text strong { display: block; font-size: 14px; }
+    .footer { background: #f8fafc; padding: 14px 28px; border: 1px solid #e2e8f0; border-top: 0;
+              border-radius: 0 0 12px 12px; font-size: 11px; color: #94a3b8; text-align: center; }
   </style>
 </head>
 <body>
-  <div class="container">
+  <div class="wrap">
     <div class="header">
-      <div style="display:flex;align-items:center;gap:16px;margin-bottom:10px;">
-        <img src="https://juanetayo-projects.github.io/mapa-calor-urgencias/logo.png"
-             alt="Clínica Santa Bárbara" style="height:48px;width:auto;" />
+      <div class="logo-row">
+        <img src="${LOGO_URL}" alt="${clinica}" />
         <div>
-          <div style="font-size:11px;opacity:0.8;letter-spacing:0.5px;text-transform:uppercase;">
-            ${params.clinicaNombre ?? 'Clínica Santa Bárbara de Alta Complejidad'}
-          </div>
-          <div style="font-size:13px;font-weight:600;margin-top:2px;">
-            Sistema de Mapa de Calor · Urgencias
-          </div>
+          <div class="logo-text">${clinica}</div>
+          <div class="logo-sys">Sistema de Mapa de Calor · Urgencias</div>
         </div>
       </div>
-      <h1 style="margin:0 0 4px;">${params.titulo}</h1>
-      <p style="margin:0;opacity:0.85;font-size:14px;">${params.periodo}</p>
+      <h1>${params.titulo}</h1>
+      <p>Período: ${params.periodo}</p>
     </div>
-    <div class="content">
-      <div class="stats">
-        <div class="stat">
+    <div class="body">
+      <div class="kpis">
+        <div class="kpi">
           <div class="val">${params.totalAtenciones.toLocaleString('es-CO')}</div>
           <div class="lbl">Total Atenciones</div>
         </div>
-        <div class="stat">
+        <div class="kpi">
           <div class="val">${params.picoHora}:00</div>
           <div class="lbl">Hora Pico</div>
         </div>
-        <div class="stat">
+        <div class="kpi">
           <div class="val">${params.promedioDia.toFixed(0)}</div>
           <div class="lbl">Promedio / Día</div>
         </div>
       </div>
-      <table>
-        <thead>
-          <tr><th>Hora</th><th>Atenciones</th><th>Profesionales</th></tr>
-        </thead>
-        <tbody>${params.tableRows}</tbody>
-      </table>
+      ${params.hasAttachments ? `
+      <div class="attach-box">
+        <div class="attach-icon">📎</div>
+        <div class="attach-text">
+          <strong>Archivos adjuntos incluidos</strong>
+          Se adjuntan el mapa de calor completo (24 horas × días de la semana) en formato Excel y PDF.
+        </div>
+      </div>` : ''}
     </div>
     <div class="footer">
       Generado automáticamente &bull; Mapa de Calor Urgencias &bull; ${new Date().toLocaleDateString('es-CO')}

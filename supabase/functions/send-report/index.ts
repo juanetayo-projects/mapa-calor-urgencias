@@ -1,6 +1,5 @@
 // Supabase Edge Function: send-report
-// Llama a Resend desde el servidor (evita restricción CORS del navegador)
-// Deploy: Supabase Dashboard → Edge Functions → New Function → nombre "send-report"
+// Deploy: Supabase Dashboard → Edge Functions → send-report → reemplazar código
 // Secret:  Supabase Dashboard → Edge Functions → Manage secrets → RESEND_API_KEY
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
@@ -21,7 +20,23 @@ serve(async (req) => {
       throw new Error('RESEND_API_KEY no configurada en los secrets de la Edge Function')
     }
 
-    const { to, subject, html, replyTo } = await req.json()
+    const { to, subject, html, replyTo, attachments } = await req.json()
+
+    const body: Record<string, unknown> = {
+      from: 'Mapa de Calor Urgencias <noreply@resend.dev>',
+      to,
+      subject,
+      html,
+      ...(replyTo ? { reply_to: replyTo } : {}),
+    }
+
+    // Adjuntos opcionales (base64)
+    if (attachments && attachments.length > 0) {
+      body.attachments = attachments.map((a: { filename: string; content: string }) => ({
+        filename: a.filename,
+        content:  a.content,
+      }))
+    }
 
     const res = await fetch('https://api.resend.com/emails', {
       method: 'POST',
@@ -29,13 +44,7 @@ serve(async (req) => {
         Authorization: `Bearer ${RESEND_API_KEY}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        from: 'Mapa de Calor Urgencias <noreply@resend.dev>',
-        to,
-        subject,
-        html,
-        ...(replyTo ? { reply_to: replyTo } : {}),
-      }),
+      body: JSON.stringify(body),
     })
 
     const data = await res.json()

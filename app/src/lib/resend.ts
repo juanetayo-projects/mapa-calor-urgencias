@@ -41,7 +41,7 @@ export async function sendEmail(payload: EmailPayload): Promise<{ success: boole
   }
 }
 
-const LOGO_URL = 'https://juanetayo-projects.github.io/mapa-calor-urgencias/logo-white.png'
+const LOGO_URL = `${import.meta.env.VITE_APP_URL ?? 'https://juanetayo-projects.github.io/mapa-calor-urgencias'}/logo-white.png`
 
 export function buildReportHtml(params: {
   titulo: string

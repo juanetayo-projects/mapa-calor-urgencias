@@ -11,11 +11,20 @@ export default function Layout() {
       <Sidebar />
       <main
         className={clsx(
-          'transition-all duration-300 min-h-screen',
+          'transition-all duration-300 min-h-screen flex flex-col',
           sidebarCollapsed ? 'ml-16' : 'ml-60'
         )}
       >
-        <Outlet />
+        <div className="flex-1">
+          <Outlet />
+        </div>
+
+        {/* Footer */}
+        <footer className="py-1.5 px-4 border-t border-slate-100 bg-slate-50">
+          <p className="text-[10px] text-slate-300 text-center tracking-wide">
+            Desarrollado por: Ing. Juan Carlos Etayo
+          </p>
+        </footer>
       </main>
     </div>
   )

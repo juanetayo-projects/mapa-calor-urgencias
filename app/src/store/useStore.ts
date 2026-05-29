@@ -45,15 +45,22 @@ export const useStore = create<AppState>()(
     {
       name: 'mcu-store',
       partialize: (s) => ({ filtros: s.filtros, sidebarCollapsed: s.sidebarCollapsed }),
-      // Ensure new fields added to defaultFiltros are not lost when upgrading persisted state
-      merge: (persisted, current) => ({
-        ...current,
-        ...(persisted as Partial<AppState>),
-        filtros: {
-          ...defaultFiltros,
-          ...(persisted as AppState)?.filtros,
-        },
-      }),
+      // Migración: convierte valores string del formato antiguo a array del formato nuevo
+      merge: (persisted, current) => {
+        const pf = (persisted as AppState)?.filtros ?? {}
+        return {
+          ...current,
+          ...(persisted as Partial<AppState>),
+          filtros: {
+            ...defaultFiltros,
+            ...pf,
+            // Antes eran string ('all'|valor), ahora son string[] → normalizar
+            triage:               Array.isArray(pf.triage)               ? pf.triage               : [],
+            destinoClasificacion: Array.isArray(pf.destinoClasificacion) ? pf.destinoClasificacion : [],
+            ubicacionTriage:      Array.isArray(pf.ubicacionTriage)      ? pf.ubicacionTriage      : [],
+          },
+        }
+      },
     }
   )
 )

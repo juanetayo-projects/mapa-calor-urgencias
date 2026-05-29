@@ -42,19 +42,14 @@ export default function ProfesionalesView() {
     )
   }
 
-  // ── Estadísticas globales ──────────────────────────────────────
-  const allCells = HORAS.flatMap(hora =>
+  // ── Máximo de profesionales (para escala de pico) ─────────────
+  const allCells     = HORAS.flatMap(hora =>
     DIAS_SEMANA.map(dia => {
       const cell = (data ?? []).find(r => r.hora === hora && r.nombre_dia === dia)
       return cell?.total ?? 0
     })
   )
-  const activeCells  = allCells.filter(v => v > 0)
-  const totalPac     = allCells.reduce((s, v) => s + v, 0)
-  const minPac       = activeCells.length > 0 ? Math.min(...activeCells) : 0
-  const maxPac       = activeCells.length > 0 ? Math.max(...activeCells) : 0
-  const avgPac       = activeCells.length > 0
-    ? (totalPac / activeCells.length).toFixed(1) : '0'
+  const maxPac       = allCells.length > 0 ? Math.max(...allCells) : 0
 
   const maxProfs = Math.max(
     ...HORAS.flatMap(hora =>
@@ -79,20 +74,7 @@ export default function ProfesionalesView() {
           </h3>
         </div>
 
-        {/* ── Análisis mensual por hora ── */}
         <div className="flex items-center gap-2 flex-wrap">
-          {totalPac > 0 && (
-            <div className="flex items-center gap-1 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-[10px]">
-              <span className="text-slate-400 font-medium mr-1">Análisis:</span>
-              <span className="text-slate-500">Mín <strong className="text-green-700">{minPac}</strong></span>
-              <span className="text-slate-300 mx-0.5">·</span>
-              <span className="text-slate-500">Máx <strong className="text-red-600">{maxPac}</strong></span>
-              <span className="text-slate-300 mx-0.5">·</span>
-              <span className="text-slate-500">Prom <strong className="text-clinic-700">{avgPac}</strong></span>
-              <span className="text-slate-300 mx-0.5">·</span>
-              <span className="text-slate-500">Total <strong className="text-slate-700">{totalPac.toLocaleString('es-CO')}</strong></span>
-            </div>
-          )}
           <span className="text-xs text-slate-400">{filtros.minutos} min/atención ·</span>
           <span className="text-xs text-slate-500 font-medium">
             Pico: <strong className="text-clinic-700">{maxProfs.toFixed(1)} prof.</strong>

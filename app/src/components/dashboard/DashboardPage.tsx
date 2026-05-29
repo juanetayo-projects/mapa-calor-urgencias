@@ -6,7 +6,9 @@ import HeatMap from './HeatMap'
 import WeeklyView from './WeeklyView'
 import ProfesionalesView from './ProfesionalesView'
 import { useStore } from '@/store/useStore'
-import { MESES } from '@/types'
+import { useHeatmapSemanal } from '@/hooks/useAtenciones'
+import { DIAS_SEMANA, MESES } from '@/types'
+import { HORAS } from '@/utils/heatmap'
 import { LayoutGrid, TableProperties, Users } from 'lucide-react'
 import { clsx } from 'clsx'
 
@@ -20,10 +22,27 @@ export default function DashboardPage() {
     ? `${MESES[filtros.mes]} ${filtros.anio}`
     : `Año ${filtros.anio}`
 
+  // ── Análisis mensual por hora (para la barra de tabs) ────────────
+  const { data: semanalData } = useHeatmapSemanal(filtros)
+
+  const allCells = HORAS.flatMap(hora =>
+    DIAS_SEMANA.map(dia => {
+      const cell = (semanalData ?? []).find(r => r.hora === hora && r.nombre_dia === dia)
+      return cell?.total ?? 0
+    })
+  )
+  const activeCells = allCells.filter(v => v > 0)
+  const totalPac    = allCells.reduce((s, v) => s + v, 0)
+  const minPac      = activeCells.length > 0 ? Math.min(...activeCells) : 0
+  const maxPac      = activeCells.length > 0 ? Math.max(...activeCells) : 0
+  const avgPac      = activeCells.length > 0
+    ? (totalPac / activeCells.length).toFixed(1)
+    : '0'
+
   const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
-    { id: 'heatmap',        label: 'Mapa de Calor',          icon: <LayoutGrid    className="w-3.5 h-3.5" /> },
-    { id: 'semanal',        label: 'Resumen Semanal',         icon: <TableProperties className="w-3.5 h-3.5" /> },
-    { id: 'profesionales',  label: 'Profesionales requeridos', icon: <Users        className="w-3.5 h-3.5" /> },
+    { id: 'heatmap',        label: 'Mapa de Calor',           icon: <LayoutGrid      className="w-3.5 h-3.5" /> },
+    { id: 'semanal',        label: 'Resumen Semanal',          icon: <TableProperties className="w-3.5 h-3.5" /> },
+    { id: 'profesionales',  label: 'Profesionales requeridos', icon: <Users           className="w-3.5 h-3.5" /> },
   ]
 
   return (
@@ -40,8 +59,8 @@ export default function DashboardPage() {
         {/* KPI Cards */}
         <StatsCards />
 
-        {/* Tabs */}
-        <div className="flex items-center gap-0.5 border-b border-slate-200">
+        {/* Tabs + Análisis mensual por hora */}
+        <div className="flex items-center gap-0.5 border-b border-slate-200 flex-wrap">
           {tabs.map(({ id, label, icon }) => (
             <button
               key={id}
@@ -57,6 +76,32 @@ export default function DashboardPage() {
               {label}
             </button>
           ))}
+
+          {/* ── Análisis mensual por hora ── visible siempre junto al botón ── */}
+          {totalPac > 0 && (
+            <div className="ml-auto flex items-center gap-2 pb-1">
+              <span className="text-[9px] font-semibold text-slate-400 uppercase tracking-wide whitespace-nowrap">
+                Análisis mensual por hora:
+              </span>
+              <div className="flex items-center gap-1.5 bg-white border border-slate-200 rounded-lg px-3 py-1 shadow-sm">
+                <span className="text-[10px] text-slate-500 whitespace-nowrap">
+                  Mín <strong className="text-green-700 text-xs">{minPac}</strong>
+                </span>
+                <span className="text-slate-300 text-xs">·</span>
+                <span className="text-[10px] text-slate-500 whitespace-nowrap">
+                  Máx <strong className="text-red-600 text-xs">{maxPac}</strong>
+                </span>
+                <span className="text-slate-300 text-xs">·</span>
+                <span className="text-[10px] text-slate-500 whitespace-nowrap">
+                  Prom <strong className="text-clinic-700 text-xs">{avgPac}</strong>
+                </span>
+                <span className="text-slate-300 text-xs">·</span>
+                <span className="text-[10px] text-slate-500 whitespace-nowrap">
+                  Total <strong className="text-slate-700 text-xs">{totalPac.toLocaleString('es-CO')}</strong>
+                </span>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Content */}

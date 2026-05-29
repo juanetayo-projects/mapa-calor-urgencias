@@ -125,8 +125,8 @@ export default function ReportsPage() {
               <div className="bg-clinic-50 border border-clinic-200 rounded-xl p-3">
                 <p className="text-xs font-semibold text-clinic-700 mb-1">Período del reporte</p>
                 <p className="text-sm text-clinic-800">{periodoLabel}</p>
-                {filtros.triage !== 'all' && (
-                  <p className="text-xs text-clinic-600 mt-1">Triage: {filtros.triage}</p>
+                {filtros.triage.length > 0 && (
+                  <p className="text-xs text-clinic-600 mt-1">Triage: {filtros.triage.join(', ')}</p>
                 )}
                 {stats && (
                   <div className="flex gap-4 mt-2 pt-2 border-t border-clinic-200">

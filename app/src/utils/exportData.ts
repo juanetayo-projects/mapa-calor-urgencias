@@ -90,7 +90,7 @@ export function exportToExcel(
   const ws = XLSX.utils.aoa_to_sheet([
     ['Sistema de Mapa de Calor · Urgencias'],
     ['Clínica Santa Bárbara de Alta Complejidad'],
-    [`Período: ${periodo}${filtros.triage !== 'all' ? '  ·  Clasificación Triage: ' + filtros.triage : ''}${(filtros.destinoClasificacion ?? 'all') !== 'all' ? '  ·  Destino: ' + filtros.destinoClasificacion : ''}`],
+    [`Período: ${periodo}${filtros.triage.length > 0 ? '  ·  Clasificación Triage: ' + filtros.triage.join(', ') : ''}${filtros.destinoClasificacion.length > 0 ? '  ·  Destino: ' + filtros.destinoClasificacion.join(', ') : ''}`],
     [],
     head,
     ...body,
@@ -207,7 +207,7 @@ export async function exportToPDF(
   doc.setFont('helvetica', 'normal')
   doc.text('Clínica Santa Bárbara de Alta Complejidad', textX, 16)
 
-  const periodoText = `Período: ${periodoTexto(filtros)}${filtros.triage !== 'all' ? '  ·  Triage: ' + filtros.triage : ''}`
+  const periodoText = `Período: ${periodoTexto(filtros)}${filtros.triage.length > 0 ? '  ·  Triage: ' + filtros.triage.join(', ') : ''}`
   doc.setFontSize(8)
   doc.text(periodoText, pageW - doc.getTextWidth(periodoText) - 5, 16)
 
@@ -303,7 +303,7 @@ export async function semanalToPDFBase64(semanalData: SemanalRow[], filtros: Fil
   doc.setFont('helvetica', 'normal')
   doc.text('Clínica Santa Bárbara de Alta Complejidad', 48, 16)
 
-  const periodoText = `Período: ${periodo}${filtros.triage !== 'all' ? '  ·  Triage: ' + filtros.triage : ''}`
+  const periodoText = `Período: ${periodo}${filtros.triage.length > 0 ? '  ·  Triage: ' + filtros.triage.join(', ') : ''}`
   doc.setFontSize(8)
   doc.text(periodoText, pageW - doc.getTextWidth(periodoText) - 5, 16)
 

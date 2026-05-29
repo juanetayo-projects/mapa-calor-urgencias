@@ -146,7 +146,7 @@ export default function HeatMap() {
             <Info className="w-3.5 h-3.5 text-slate-400" />
             <span className="text-xs text-slate-500">
               {filtros.vista === 'promedio' ? 'Promedio atenciones' : 'Total atenciones'} por hora
-              {filtros.triage !== 'all' && ` · ${filtros.triage}`}
+              {filtros.triage.length > 0 && ` · ${filtros.triage.join(', ')}`}
             </span>
           </div>
           {filtros.mes && (

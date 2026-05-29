@@ -48,10 +48,17 @@ function fmtDatetime(iso: string) {
 
 function fmtTimeRange(from: string | null, to: string | null) {
   if (!from || !to) return '—'
-  const fmt = (iso: string) =>
-    new Date(iso).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })
-  const fDate = new Date(from).toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit' })
-  return `${fDate}  ${fmt(from)} – ${fmt(to)}`
+  // sync_from/to almacenan hora Colombia como si fuera UTC → leer componentes UTC directamente
+  const fmtUTC = (iso: string) => {
+    const d = new Date(iso)
+    const h = String(d.getUTCHours()).padStart(2, '0')
+    const m = String(d.getUTCMinutes()).padStart(2, '0')
+    return `${h}:${m}`
+  }
+  const d = new Date(from)
+  const day   = String(d.getUTCDate()).padStart(2, '0')
+  const month = String(d.getUTCMonth() + 1).padStart(2, '0')
+  return `${day}/${month}  ${fmtUTC(from)} – ${fmtUTC(to)}`
 }
 
 // ── Componente principal ──────────────────────────────────────────────────

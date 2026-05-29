@@ -1,10 +1,95 @@
-import { useEffect } from 'react'
-import { RotateCcw, SlidersHorizontal, Timer } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { RotateCcw, SlidersHorizontal, Timer, ChevronDown, X } from 'lucide-react'
 import { useStore } from '@/store/useStore'
 import { useAniosDisponibles, useTriageDisponibles, useDestinoDisponibles, useUbicacionDisponibles } from '@/hooks/useAtenciones'
-import { DIAS_SEMANA, DIAS_LABEL, MESES, type NombreDia, type VistaHeatmap } from '@/types'
+import { DIAS_SEMANA, MESES, type NombreDia, type VistaHeatmap } from '@/types'
 import { calcCapacidad } from '@/utils/heatmap'
 import { clsx } from 'clsx'
+
+// ── Componente multi-select reutilizable ──────────────────────────────────
+
+interface MultiSelectProps {
+  label: string
+  options: string[]
+  selected: string[]
+  onChange: (v: string[]) => void
+  allLabel?: string
+}
+
+function MultiSelect({ label, options, selected, onChange, allLabel = 'Todos' }: MultiSelectProps) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    function handleOutside(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener('mousedown', handleOutside)
+    return () => document.removeEventListener('mousedown', handleOutside)
+  }, [])
+
+  function toggle(v: string) {
+    onChange(selected.includes(v) ? selected.filter(x => x !== v) : [...selected, v])
+  }
+
+  const buttonLabel =
+    selected.length === 0 ? allLabel
+    : selected.length === 1 ? selected[0]
+    : `${selected.length} sel.`
+
+  const hasSelection = selected.length > 0
+
+  return (
+    <div className="flex items-center gap-1">
+      <label className="text-[10px] font-medium text-slate-400 whitespace-nowrap">{label}</label>
+      <div ref={ref} className="relative">
+        <button
+          type="button"
+          onClick={() => setOpen(!open)}
+          className={clsx(
+            'flex items-center gap-1 filter-select py-1 text-xs min-w-[80px] max-w-[110px]',
+            hasSelection && 'border-clinic-400 bg-clinic-50 text-clinic-700 font-medium'
+          )}
+        >
+          <span className="flex-1 truncate text-left">{buttonLabel}</span>
+          {hasSelection
+            ? <X className="w-2.5 h-2.5 flex-shrink-0 text-clinic-500 hover:text-clinic-800"
+                onClick={e => { e.stopPropagation(); onChange([]) }} />
+            : <ChevronDown className={clsx('w-2.5 h-2.5 flex-shrink-0 transition-transform text-slate-400', open && 'rotate-180')} />
+          }
+        </button>
+
+        {open && options.length > 0 && (
+          <div className="absolute z-50 top-full mt-0.5 left-0 bg-white border border-slate-200 rounded-lg shadow-lg min-w-[160px] py-1 max-h-52 overflow-y-auto">
+            {/* Opción "Todos" */}
+            <label className="flex items-center gap-2 px-3 py-1.5 hover:bg-slate-50 cursor-pointer border-b border-slate-100">
+              <input
+                type="checkbox"
+                checked={selected.length === 0}
+                onChange={() => onChange([])}
+                className="w-3 h-3 accent-clinic-600"
+              />
+              <span className="text-xs font-medium text-slate-500 italic">{allLabel}</span>
+            </label>
+            {options.map(opt => (
+              <label key={opt} className="flex items-center gap-2 px-3 py-1.5 hover:bg-clinic-50 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={selected.includes(opt)}
+                  onChange={() => toggle(opt)}
+                  className="w-3 h-3 accent-clinic-600"
+                />
+                <span className="text-xs text-slate-700">{opt}</span>
+              </label>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ── Panel principal ────────────────────────────────────────────────────────
 
 export default function FiltersPanel() {
   const { filtros, setFiltros, resetFiltros } = useStore()
@@ -13,8 +98,7 @@ export default function FiltersPanel() {
   const { data: destinos = [] } = useDestinoDisponibles()
   const { data: ubicaciones = [] } = useUbicacionDisponibles()
 
-  // Cuando los años disponibles cargan, si el año en el store no tiene datos,
-  // cambiar automáticamente al primer año disponible
+  // Si el año en el store no tiene datos, cambiar al primer año disponible
   useEffect(() => {
     if (anios.length > 0 && !anios.some(({ anio }) => anio === filtros.anio)) {
       setFiltros({ anio: anios[0].anio })
@@ -104,50 +188,32 @@ export default function FiltersPanel() {
           </select>
         </div>
 
-        {/* Clasificación Triage */}
-        <div className="flex items-center gap-1">
-          <label className="text-[10px] font-medium text-slate-400 whitespace-nowrap">Clasificación</label>
-          <select
-            className="filter-select py-1 text-xs"
-            value={filtros.triage}
-            onChange={(e) => setFiltros({ triage: e.target.value })}
-          >
-            <option value="all">Todos</option>
-            {triages.map((t) => (
-              <option key={t} value={t}>{t}</option>
-            ))}
-          </select>
-        </div>
+        {/* Clasificación Triage — multi-select */}
+        <MultiSelect
+          label="Clasificación"
+          options={triages}
+          selected={filtros.triage}
+          onChange={(v) => setFiltros({ triage: v })}
+          allLabel="Todos"
+        />
 
-        {/* Destino clasificación */}
-        <div className="flex items-center gap-1">
-          <label className="text-[10px] font-medium text-slate-400 whitespace-nowrap">Destino</label>
-          <select
-            className="filter-select py-1 text-xs"
-            value={filtros.destinoClasificacion}
-            onChange={(e) => setFiltros({ destinoClasificacion: e.target.value })}
-          >
-            <option value="all">Todos</option>
-            {destinos.map(({ destino }) => (
-              <option key={destino} value={destino}>{destino}</option>
-            ))}
-          </select>
-        </div>
+        {/* Destino clasificación — multi-select */}
+        <MultiSelect
+          label="Destino"
+          options={destinos.map(d => d.destino)}
+          selected={filtros.destinoClasificacion}
+          onChange={(v) => setFiltros({ destinoClasificacion: v })}
+          allLabel="Todos"
+        />
 
-        {/* Ubicación Triage */}
-        <div className="flex items-center gap-1">
-          <label className="text-[10px] font-medium text-slate-400 whitespace-nowrap">Ubicación</label>
-          <select
-            className="filter-select py-1 text-xs"
-            value={filtros.ubicacionTriage ?? 'all'}
-            onChange={(e) => setFiltros({ ubicacionTriage: e.target.value })}
-          >
-            <option value="all">Todas</option>
-            {ubicaciones.map((u) => (
-              <option key={u} value={u}>{u}</option>
-            ))}
-          </select>
-        </div>
+        {/* Ubicación Triage — multi-select */}
+        <MultiSelect
+          label="Ubicación"
+          options={ubicaciones}
+          selected={filtros.ubicacionTriage}
+          onChange={(v) => setFiltros({ ubicacionTriage: v })}
+          allLabel="Todas"
+        />
 
         {/* Minutos */}
         <div className="flex items-center gap-1">

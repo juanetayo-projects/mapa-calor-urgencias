@@ -3,6 +3,7 @@ import { useStore } from '@/store/useStore'
 import { DIAS_SEMANA } from '@/types'
 import { calcProfesionales, formatHora, HORAS } from '@/utils/heatmap'
 import { Loader2, Users } from 'lucide-react'
+import { clsx } from 'clsx'
 
 type ProfLevel = 0 | 1 | 2 | 3 | 4 | 5 | 6
 
@@ -24,11 +25,8 @@ const PROF_SCALE: Record<ProfLevel, ProfStyle> = {
 
 function getProfStyle(profs: number): ProfStyle {
   if (profs === 0) return PROF_SCALE[0]
-  if (profs === 1) return PROF_SCALE[1]
-  if (profs === 2) return PROF_SCALE[2]
-  if (profs === 3) return PROF_SCALE[3]
-  if (profs === 4) return PROF_SCALE[4]
-  if (profs === 5) return PROF_SCALE[5]
+  const level = Math.ceil(profs) as ProfLevel
+  if (level <= 5) return PROF_SCALE[level]
   return PROF_SCALE[6]
 }
 
@@ -44,12 +42,31 @@ export default function ProfesionalesView() {
     )
   }
 
-  // Max professionals in any cell (for summary info)
-  const maxProfs = HORAS.reduce((mx, hora) =>
-    DIAS_SEMANA.reduce((mx2, dia) => {
-      const cell = (data ?? []).find((r) => r.hora === hora && r.nombre_dia === dia)
-      return Math.max(mx2, calcProfesionales(cell?.total ?? 0, filtros.minutos))
-    }, mx), 0)
+  // ── Estadísticas globales ──────────────────────────────────────
+  const allCells = HORAS.flatMap(hora =>
+    DIAS_SEMANA.map(dia => {
+      const cell = (data ?? []).find(r => r.hora === hora && r.nombre_dia === dia)
+      return cell?.total ?? 0
+    })
+  )
+  const activeCells  = allCells.filter(v => v > 0)
+  const totalPac     = allCells.reduce((s, v) => s + v, 0)
+  const minPac       = activeCells.length > 0 ? Math.min(...activeCells) : 0
+  const maxPac       = activeCells.length > 0 ? Math.max(...activeCells) : 0
+  const avgPac       = activeCells.length > 0
+    ? (totalPac / activeCells.length).toFixed(1) : '0'
+
+  const maxProfs = Math.max(
+    ...HORAS.flatMap(hora =>
+      DIAS_SEMANA.map(dia => {
+        const cell = (data ?? []).find(r => r.hora === hora && r.nombre_dia === dia)
+        return calcProfesionales(cell?.total ?? 0, filtros.minutos)
+      })
+    ),
+    0
+  )
+
+  const peakThreshold = maxPac > 0 ? maxPac * 0.85 : Infinity
 
   return (
     <div className="card p-4 overflow-auto">
@@ -61,13 +78,27 @@ export default function ProfesionalesView() {
             Profesionales requeridos por hora y día
           </h3>
         </div>
+
+        {/* ── Análisis mensual por hora ── */}
         <div className="flex items-center gap-2 flex-wrap">
+          {totalPac > 0 && (
+            <div className="flex items-center gap-1 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-[10px]">
+              <span className="text-slate-400 font-medium mr-1">Análisis:</span>
+              <span className="text-slate-500">Mín <strong className="text-green-700">{minPac}</strong></span>
+              <span className="text-slate-300 mx-0.5">·</span>
+              <span className="text-slate-500">Máx <strong className="text-red-600">{maxPac}</strong></span>
+              <span className="text-slate-300 mx-0.5">·</span>
+              <span className="text-slate-500">Prom <strong className="text-clinic-700">{avgPac}</strong></span>
+              <span className="text-slate-300 mx-0.5">·</span>
+              <span className="text-slate-500">Total <strong className="text-slate-700">{totalPac.toLocaleString('es-CO')}</strong></span>
+            </div>
+          )}
           <span className="text-xs text-slate-400">{filtros.minutos} min/atención ·</span>
           <span className="text-xs text-slate-500 font-medium">
-            Pico: <strong className="text-clinic-700">{maxProfs} prof.</strong>
+            Pico: <strong className="text-clinic-700">{maxProfs.toFixed(1)} prof.</strong>
           </span>
           {/* Leyenda */}
-          <div className="flex items-center gap-1 ml-2">
+          <div className="flex items-center gap-1 ml-1">
             {([1, 2, 3, 4, 5, 6] as ProfLevel[]).map((n) => (
               <div
                 key={n}
@@ -113,6 +144,7 @@ export default function ProfesionalesView() {
               })
               const rowPacientes = cells.reduce((s, c) => s + c.total, 0)
               const rowMaxProfs  = cells.reduce((s, c) => Math.max(s, c.profs), 0)
+              const isRowPeak    = cells.some(c => c.total >= peakThreshold)
 
               if (rowPacientes === 0) {
                 return (
@@ -127,9 +159,7 @@ export default function ProfesionalesView() {
                           style={{
                             background: PROF_SCALE[0].bg,
                             color: PROF_SCALE[0].text,
-                            width: 36,
-                            height: 22,
-                            fontSize: 11,
+                            width: 36, height: 22, fontSize: 11,
                           }}
                         >
                           ·
@@ -143,32 +173,48 @@ export default function ProfesionalesView() {
               }
 
               return (
-                <tr key={hora} className="border-b border-slate-100 hover:bg-slate-50/50">
-                  <td className="py-0.5 pr-3 text-slate-600 whitespace-nowrap font-medium text-[10px]">
+                <tr
+                  key={hora}
+                  className={clsx(
+                    'border-b',
+                    isRowPeak
+                      ? 'border-red-200 bg-red-50/40 hover:bg-red-50/70'
+                      : 'border-slate-100 hover:bg-slate-50/50'
+                  )}
+                >
+                  <td className={clsx(
+                    'py-0.5 pr-3 whitespace-nowrap font-medium text-[10px]',
+                    isRowPeak ? 'text-red-700' : 'text-slate-600'
+                  )}>
                     {formatHora(hora)}
                   </td>
                   {cells.map(({ dia, total, profs }) => {
-                    const style = getProfStyle(profs)
+                    const style      = getProfStyle(profs)
+                    const isCellPeak = total >= peakThreshold
                     return (
                       <td key={dia} className="py-0.5 px-0.5 text-center">
                         <div
-                          className="rounded mx-auto flex items-center justify-center font-bold"
+                          className={clsx(
+                            'rounded mx-auto flex items-center justify-center font-bold',
+                            isCellPeak && 'ring-2 ring-red-500 ring-offset-1'
+                          )}
                           style={{
                             background: style.bg,
                             color: style.text,
-                            width: 36,
-                            height: 22,
-                            fontSize: 11,
+                            width: 36, height: 22, fontSize: 11,
                           }}
-                          title={total > 0 ? `${total} pac. → ${profs} prof.` : ''}
+                          title={total > 0 ? `${total} pac. → ${profs.toFixed(1)} prof.` : ''}
                         >
-                          {profs > 0 ? profs : '·'}
+                          {profs > 0 ? profs.toFixed(1) : '·'}
                         </div>
                       </td>
                     )
                   })}
-                  <td className="py-0.5 px-1 text-center font-bold text-clinic-700 text-xs">
-                    {rowMaxProfs}
+                  <td className={clsx(
+                    'py-0.5 px-1 text-center font-bold text-xs',
+                    isRowPeak ? 'text-red-700' : 'text-clinic-700'
+                  )}>
+                    {rowMaxProfs.toFixed(1)}
                   </td>
                   <td className="py-0.5 px-1 text-center text-slate-500 text-xs">
                     {rowPacientes.toLocaleString('es-CO')}
@@ -193,7 +239,7 @@ export default function ProfesionalesView() {
                         className="rounded mx-auto flex items-center justify-center font-bold text-xs"
                         style={{ background: style.bg, color: style.text, width: 36, height: 22 }}
                       >
-                        {diaProfs}
+                        {diaProfs.toFixed(1)}
                       </div>
                     ) : (
                       <span className="text-slate-300">—</span>
@@ -201,7 +247,9 @@ export default function ProfesionalesView() {
                   </td>
                 )
               })}
-              <td className="py-2 px-1 text-center text-clinic-800 text-xs font-bold">{maxProfs}</td>
+              <td className="py-2 px-1 text-center text-clinic-800 text-xs font-bold">
+                {maxProfs.toFixed(1)}
+              </td>
               <td className="py-2 px-1 text-center text-slate-500 text-xs">
                 {(data ?? []).reduce((s, r) => s + r.total, 0).toLocaleString('es-CO')}
               </td>
@@ -211,8 +259,8 @@ export default function ProfesionalesView() {
       </div>
 
       <p className="text-[10px] text-slate-400 mt-2 italic">
-        Cada celda muestra cuántos profesionales se necesitan simultáneamente en esa hora/día
-        ({filtros.minutos} min/atención). Hover para ver pacientes totales.
+        Cada celda muestra profesionales requeridos (decimal) para esa hora/día
+        ({filtros.minutos} min/atención). · <span className="text-red-500">■</span> Celdas pico (≥85% máximo)
       </p>
     </div>
   )

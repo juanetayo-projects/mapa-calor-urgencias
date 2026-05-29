@@ -6,6 +6,7 @@ import { Loader2, BarChart3 } from 'lucide-react'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell
 } from 'recharts'
+import { clsx } from 'clsx'
 
 export default function WeeklyView() {
   const { filtros } = useStore()
@@ -29,7 +30,7 @@ export default function WeeklyView() {
     return { dia, label: DIAS_LABEL[dia], total, promedio: Math.round(promedio) }
   })
 
-  const maxTotal = Math.max(...byDay.map((d) => d.total), 1)
+  const maxDayTotal = Math.max(...byDay.map((d) => d.total), 1)
 
   // Aggregate by hour for peak hours chart
   const byHour = Array.from({ length: 24 }, (_, h) => {
@@ -37,15 +38,29 @@ export default function WeeklyView() {
     const total = rows.reduce((s, r) => s + r.total, 0)
     return { hora: h, label: `${h}h`, total }
   })
+  const maxHourTotal = Math.max(...byHour.map(h => h.total), 1)
+
+  // Globals for table highlights
+  const allCellValues = DIAS_SEMANA.flatMap(dia =>
+    Array.from({ length: 24 }, (_, hora) => {
+      const cell = (data ?? []).find(r => r.hora === hora && r.nombre_dia === dia)
+      return cell?.total ?? 0
+    })
+  )
+  const globalMax = Math.max(...allCellValues, 1)
+  const peakThreshold = globalMax * 0.85   // top 15% = pico
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
       {/* Totals by day of week */}
       <div className="card p-4">
-        <div className="flex items-center gap-2 mb-4">
+        <div className="flex items-center gap-2 mb-1">
           <BarChart3 className="w-4 h-4 text-clinic-600" />
           <h3 className="text-sm font-semibold text-slate-700">Atenciones por día de semana</h3>
         </div>
+        <p className="text-[10px] text-slate-400 mb-3">
+          Sumatoria de pacientes atendidos por día de la semana
+        </p>
         <ResponsiveContainer width="100%" height={200}>
           <BarChart data={byDay} margin={{ top: 4, right: 8, left: -10, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
@@ -57,8 +72,16 @@ export default function WeeklyView() {
             />
             <Bar dataKey="total" radius={[4, 4, 0, 0]}>
               {byDay.map(({ total }) => {
-                const s = getCellStyle(total, maxTotal)
-                return <Cell key={total} fill={s.bg === '#f8fafc' ? '#e2e8f0' : s.bg} />
+                const isPeak = total >= maxDayTotal * 0.85
+                const s = getCellStyle(total, maxDayTotal)
+                return (
+                  <Cell
+                    key={total}
+                    fill={isPeak ? '#dc2626' : s.bg === '#f8fafc' ? '#e2e8f0' : s.bg}
+                    stroke={isPeak ? '#991b1b' : 'none'}
+                    strokeWidth={isPeak ? 2 : 0}
+                  />
+                )
               })}
             </Bar>
           </BarChart>
@@ -67,10 +90,13 @@ export default function WeeklyView() {
 
       {/* Atenciones by hour */}
       <div className="card p-4">
-        <div className="flex items-center gap-2 mb-4">
+        <div className="flex items-center gap-2 mb-1">
           <BarChart3 className="w-4 h-4 text-clinic-600" />
           <h3 className="text-sm font-semibold text-slate-700">Atenciones por hora (semana)</h3>
         </div>
+        <p className="text-[10px] text-slate-400 mb-3">
+          Sumatoria de pacientes atendidos por hora durante el mes
+        </p>
         <ResponsiveContainer width="100%" height={200}>
           <BarChart data={byHour} margin={{ top: 4, right: 8, left: -10, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
@@ -80,7 +106,20 @@ export default function WeeklyView() {
               formatter={(v: number) => [v.toLocaleString('es-CO'), 'Atenciones']}
               contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid #e2e8f0' }}
             />
-            <Bar dataKey="total" fill="#2a63b2" opacity={0.85} radius={[3, 3, 0, 0]} />
+            <Bar dataKey="total" radius={[3, 3, 0, 0]}>
+              {byHour.map(({ total }) => {
+                const isPeak = total >= maxHourTotal * 0.85
+                return (
+                  <Cell
+                    key={total}
+                    fill={isPeak ? '#dc2626' : '#2a63b2'}
+                    opacity={isPeak ? 1 : 0.82}
+                    stroke={isPeak ? '#991b1b' : 'none'}
+                    strokeWidth={isPeak ? 2 : 0}
+                  />
+                )
+              })}
+            </Bar>
           </BarChart>
         </ResponsiveContainer>
       </div>
@@ -108,35 +147,59 @@ export default function WeeklyView() {
                   const cell = (data ?? []).find((r) => r.hora === hora && r.nombre_dia === dia)
                   return s + (cell?.total ?? 0)
                 }, 0)
-                const rowAvg = rowTotal > 0 ? Math.round(rowTotal / 7) : 0
+                const rowAvg = rowTotal > 0 ? (rowTotal / 7).toFixed(1) : '—'
+                const isRowPeak = rowTotal >= peakThreshold * 7 / 2
 
                 return (
-                  <tr key={hora} className="border-b border-slate-100 hover:bg-slate-50">
-                    <td className="py-1 pr-3 text-slate-600 whitespace-nowrap font-medium">
+                  <tr
+                    key={hora}
+                    className={clsx(
+                      'border-b border-slate-100',
+                      isRowPeak ? 'bg-red-50/60 hover:bg-red-50' : 'hover:bg-slate-50'
+                    )}
+                  >
+                    <td className={clsx(
+                      'py-1 pr-3 whitespace-nowrap font-medium',
+                      isRowPeak ? 'text-red-700' : 'text-slate-600'
+                    )}>
                       {formatHora(hora)}
                     </td>
                     {DIAS_SEMANA.map((dia) => {
                       const cell = (data ?? []).find((r) => r.hora === hora && r.nombre_dia === dia)
                       const v = cell?.total ?? 0
                       const profs = calcProfesionales(v, filtros.minutos)
-                      const s = getCellStyle(v, Math.max(...(data ?? []).map((r) => r.total), 1))
+                      const s = getCellStyle(v, globalMax)
+                      const isCellPeak = v >= peakThreshold
 
                       return (
                         <td key={dia} className="py-1 px-1 text-center">
                           <div
-                            className="rounded px-1 py-0.5 inline-block min-w-[32px] font-medium"
+                            className={clsx(
+                              'rounded px-1 py-0.5 inline-block min-w-[32px] font-medium',
+                              isCellPeak && 'ring-2 ring-red-500 ring-offset-1'
+                            )}
                             style={{ background: s.bg, color: s.text }}
                           >
                             {v > 0 ? v : '·'}
                           </div>
                           {profs > 0 && (
-                            <div className="text-[10px] text-amber-600 font-medium">{profs}p</div>
+                            <div className={clsx(
+                              'text-[10px] font-medium',
+                              isCellPeak ? 'text-red-600' : 'text-amber-600'
+                            )}>
+                              {profs}p
+                            </div>
                           )}
                         </td>
                       )
                     })}
-                    <td className="py-1 px-1 text-center font-bold text-clinic-700">{rowTotal > 0 ? rowTotal : '—'}</td>
-                    <td className="py-1 px-1 text-center text-slate-500">{rowAvg > 0 ? rowAvg : '—'}</td>
+                    <td className={clsx(
+                      'py-1 px-1 text-center font-bold',
+                      isRowPeak ? 'text-red-700' : 'text-clinic-700'
+                    )}>
+                      {rowTotal > 0 ? rowTotal : '—'}
+                    </td>
+                    <td className="py-1 px-1 text-center text-slate-500">{rowAvg}</td>
                   </tr>
                 )
               })}
@@ -158,7 +221,9 @@ export default function WeeklyView() {
             </tfoot>
           </table>
         </div>
-        <p className="text-xs text-slate-400 mt-2 italic">p = profesionales requeridos</p>
+        <p className="text-xs text-slate-400 mt-2 italic">
+          p = profesionales requeridos · <span className="text-red-500">■</span> Celdas pico (≥85% del máximo)
+        </p>
       </div>
     </div>
   )

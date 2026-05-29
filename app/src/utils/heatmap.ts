@@ -28,11 +28,12 @@ export function getCellStyle(value: number, maxValue: number): CellStyle {
   return SCALE.critical
 }
 
-// How many professionals needed given patients and minutes-per-patient
+// How many professionals needed given patients and minutes-per-patient (1 decimal)
 export function calcProfesionales(atenciones: number, minutos: number): number {
   if (atenciones === 0) return 0
   const atencionesPerHour = 60 / minutos
-  return Math.ceil(atenciones / atencionesPerHour)
+  const raw = atenciones / atencionesPerHour
+  return Math.round(raw * 10) / 10
 }
 
 // Capacity: how many patients 1 professional can see per hour

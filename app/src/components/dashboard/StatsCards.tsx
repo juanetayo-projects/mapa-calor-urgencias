@@ -1,7 +1,7 @@
-import { Users, Clock, TrendingUp, Calendar, Stethoscope, Timer } from 'lucide-react'
+import { Users, Clock, TrendingUp, Calendar, BarChart2, Timer } from 'lucide-react'
 import { useStats } from '@/hooks/useAtenciones'
 import { useStore } from '@/store/useStore'
-import { formatHora, calcCapacidad, calcProfesionales } from '@/utils/heatmap'
+import { formatHora, calcCapacidad } from '@/utils/heatmap'
 import { MESES } from '@/types'
 
 interface StatCardProps {
@@ -37,9 +37,9 @@ export default function StatsCards() {
   const { data: stats, isLoading } = useStats(filtros)
   const capacidad = calcCapacidad(filtros.minutos)
 
-  const picoProfs = stats
-    ? calcProfesionales(stats.pico_total, filtros.minutos)
-    : 0
+  const promPacHora = stats && stats.total_dias > 0
+    ? (stats.total_atenciones / stats.total_dias / 24).toFixed(1)
+    : '—'
 
   const periodoLabel = filtros.mes
     ? `${MESES[filtros.mes]} ${filtros.anio}`
@@ -76,18 +76,18 @@ export default function StatsCards() {
         color="indigo"
       />
       <StatCard
-        icon={<Stethoscope className="w-4 h-4" />}
-        label="Prof. en pico"
-        value={picoProfs}
-        sub="Profesionales requeridos"
-        color="amber"
+        icon={<BarChart2 className="w-4 h-4" />}
+        label="Prom. pac./hora"
+        value={promPacHora}
+        sub={stats ? `Pico: ${stats.pico_total} pac.` : undefined}
+        color="teal"
         loading={isLoading}
       />
       <StatCard
         icon={<Clock className="w-4 h-4" />}
         label="Días analizados"
         value={stats?.total_dias ?? '—'}
-        sub={filtros.triage === 'all' ? 'Todos los triage' : filtros.triage}
+        sub={filtros.triage.length === 0 ? 'Todos los triage' : filtros.triage.join(', ')}
         loading={isLoading}
       />
     </div>

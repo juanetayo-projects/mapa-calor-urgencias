@@ -87,9 +87,9 @@ export interface Filtros {
   mes: number | null
   diasSemana: NombreDia[]
   semanaDelMes: number | null
-  triage: string
-  destinoClasificacion: string
-  ubicacionTriage: string
+  triage: string[]             // [] = todos; ['I','II'] = filtro múltiple
+  destinoClasificacion: string[] // [] = todos
+  ubicacionTriage: string[]    // [] = todos
   minutos: number
   vista: VistaHeatmap
 }

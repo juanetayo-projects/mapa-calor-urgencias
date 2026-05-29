@@ -21,9 +21,9 @@ const defaultFiltros: Filtros = {
   mes: new Date().getMonth() + 1,
   diasSemana: [],
   semanaDelMes: null,
-  triage: 'all',
-  destinoClasificacion: 'all',
-  ubicacionTriage: 'all',
+  triage: [],               // [] = todos los triage
+  destinoClasificacion: [], // [] = todos los destinos
+  ubicacionTriage: [],      // [] = todas las ubicaciones
   minutos: 30,
   vista: 'mensual',
 }

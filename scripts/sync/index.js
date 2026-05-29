@@ -127,13 +127,14 @@ function mapRow(row) {
     fecha_primera_evolucion:             toDateStr(row['FechaPrimeraEvolucionUrgencias']),
     tiempo_revaloracion_horas:           toInt(row['TiempoRevaloracion(horas)']),
     destino_primera_evolucion:           row['DestinoPrimeraEvolucionUrgencias']     || null,
-    tiempo_estancia_urgencias_minutos:   toInt(row['TiempoEstanciaEnUrgencias(minutos)']),
-    tiempo_internacion_horas:            toInt(row['TiempoEnUrgenciasParaInternacion(horas)']),
+    tiempo_estancia_urgencias_minutos:        toInt(row['TiempoEstanciaEnUrgencias(minutos)']),
+    tiempo_urgencias_internacion_horas:       toInt(row['TiempoEnUrgenciasParaInternacion(horas)']),
     diagnostico_principal:               row['DiagnosticoPrincipal'] || null,
-    dia:        toInt(row['#dia']),
-    mes:        toInt(row['mes']),
-    hora:       toInt(row['hora']),
-    nombre_dia: row['Ndia'] || null,
+    // hora_numerica y nombre_dia son columnas reales
+    hora_numerica: toInt(row['hora']),
+    nombre_dia:    row['Ndia'] || null,
+    // dia_numero, mes_numero, anio_numero, semana_del_mes son GENERATED ALWAYS
+    // → NO incluir: PostgreSQL los calcula solo desde fecha_triage
   };
 }
 

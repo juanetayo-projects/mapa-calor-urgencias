@@ -9,6 +9,7 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.45.0",
-    "mssql": "^11.0.1"
+    "mssql": "^11.0.1",
+    "ws": "^8.18.0"
   }
 }

@@ -11,6 +11,7 @@
 
 const sql      = require('mssql');
 const { createClient } = require('@supabase/supabase-js');
+const ws       = require('ws');
 const fs       = require('fs');
 const path     = require('path');
 
@@ -150,7 +151,10 @@ async function main() {
   const supabase = createClient(
     process.env.SUPABASE_URL,
     process.env.SUPABASE_SERVICE_KEY,
-    { auth: { autoRefreshToken: false, persistSession: false } }
+    {
+      auth: { autoRefreshToken: false, persistSession: false },
+      realtime: { transport: ws },
+    }
   );
 
   let recordsFetched  = 0;

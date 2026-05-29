@@ -1,0 +1,44 @@
+name: "Sync SQL Server → Supabase"
+
+on:
+  schedule:
+    # Cada hora a los :05 UTC  (da 5 min de margen a la réplica Azure)
+    - cron: "5 * * * *"
+  workflow_dispatch:
+    inputs:
+      hours_back:
+        description: "Horas hacia atrás a sincronizar (default: 1)"
+        required: false
+        default: "1"
+
+jobs:
+  sync:
+    name: Hourly Sync
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install dependencies
+        run: npm install --prefer-offline
+        working-directory: ./scripts/sync
+
+      - name: Run sync
+        env:
+          GOMEDISYS_HOST:       ${{ secrets.GOMEDISYS_HOST }}
+          GOMEDISYS_PORT:       ${{ secrets.GOMEDISYS_PORT }}
+          GOMEDISYS_DATABASE:   ${{ secrets.GOMEDISYS_DATABASE }}
+          GOMEDISYS_USERNAME:   ${{ secrets.GOMEDISYS_USERNAME }}
+          GOMEDISYS_PASSWORD:   ${{ secrets.GOMEDISYS_PASSWORD }}
+          SUPABASE_URL:         ${{ secrets.VITE_SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          HOURS_BACK:           ${{ github.event.inputs.hours_back || '1' }}
+          TRIGGERED_BY:         ${{ github.event_name == 'workflow_dispatch' && 'manual' || 'cron' }}
+        run: node index.js
+        working-directory: ./scripts/sync

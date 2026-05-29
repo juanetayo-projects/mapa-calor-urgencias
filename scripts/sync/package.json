@@ -1,0 +1,14 @@
+{
+  "name": "sync-sqlserver-supabase",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Sync horario desde SQL Server (Azure) hacia Supabase",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.45.0",
+    "mssql": "^11.0.1"
+  }
+}

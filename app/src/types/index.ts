@@ -118,6 +118,19 @@ export interface Configuracion {
   updated_at: string
 }
 
+export interface SyncLog {
+  id: string
+  executed_at: string
+  status: 'success' | 'error' | 'partial'
+  records_fetched: number
+  records_upserted: number
+  duration_ms: number | null
+  error_message: string | null
+  sync_from: string | null
+  sync_to: string | null
+  triggered_by: string
+}
+
 export interface ReporteEmail {
   id: string
   tipo: string

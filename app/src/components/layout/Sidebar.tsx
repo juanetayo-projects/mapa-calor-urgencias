@@ -7,6 +7,7 @@ import {
   ChevronRight,
   LogOut,
   Upload,
+  Activity,
 } from 'lucide-react'
 import { useStore } from '@/store/useStore'
 import { useAuth } from '@/hooks/useAuth'
@@ -15,8 +16,9 @@ import { clsx } from 'clsx'
 const NAV = [
   { to: '/dashboard', icon: LayoutDashboard, label: 'Mapa de Calor' },
   { to: '/reportes',  icon: FileText,         label: 'Reportes' },
-  { to: '/importar',  icon: Upload,            label: 'Importar datos', adminOnly: true },
-  { to: '/admin',     icon: Settings,          label: 'Administración', adminOnly: true },
+  { to: '/importar',  icon: Upload,            label: 'Importar datos',  adminOnly: true },
+  { to: '/sync',      icon: Activity,          label: 'Sincronización',  adminOnly: true },
+  { to: '/admin',     icon: Settings,          label: 'Administración',  adminOnly: true },
 ]
 
 export default function Sidebar() {

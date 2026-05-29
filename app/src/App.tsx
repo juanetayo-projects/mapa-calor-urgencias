@@ -5,6 +5,7 @@ import ProtectedRoute from '@/components/auth/ProtectedRoute'
 import Layout from '@/components/layout/Layout'
 import DashboardPage from '@/components/dashboard/DashboardPage'
 import AdminPage from '@/components/admin/AdminPage'
+import SyncPage from '@/components/admin/SyncPage'
 import ReportsPage from '@/components/reports/ReportsPage'
 import ImportPage from '@/components/import/ImportPage'
 
@@ -41,6 +42,7 @@ export default function App() {
             <Route path="/reportes" element={<ReportsPage />} />
             <Route path="/importar" element={<ImportPage />} />
             <Route path="/admin" element={<AdminPage />} />
+            <Route path="/sync" element={<SyncPage />} />
           </Route>
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />

@@ -140,14 +140,44 @@ function mapRow(row) {
 
 // ── Main ───────────────────────────────────────────────────────────────────
 
+// ── Auto-recuperación de horas perdidas ───────────────────────────────────
+//
+// Si HOURS_BACK no está definido manualmente, consulta sync_logs para saber
+// cuánto tiempo pasó desde el último sync exitoso y recuperar el gap completo.
+// Esto soluciona la falta de confiabilidad del cron de GitHub Actions.
+
+async function getAutoHoursBack(supabase, defaultHours = 1) {
+  try {
+    const { data, error } = await supabase
+      .from('sync_logs')
+      .select('sync_to')
+      .eq('status', 'success')
+      .order('executed_at', { ascending: false })
+      .limit(1);
+
+    if (error || !data?.length || !data[0].sync_to) {
+      console.log(`[sync] Sin sync previo exitoso encontrado, usando ${defaultHours}h`);
+      return defaultHours;
+    }
+
+    // sync_to almacena la hora Colombia como si fuera UTC (ver COLOMBIA_OFFSET_H)
+    const lastSyncToMs  = new Date(data[0].sync_to).getTime();
+    const nowColombiaMs = Date.now() + COLOMBIA_OFFSET_H * 3_600_000;
+    const hoursDiff     = Math.ceil((nowColombiaMs - lastSyncToMs) / 3_600_000);
+    const hoursBack     = Math.min(Math.max(hoursDiff, 1), 24); // entre 1 y 24
+
+    console.log(`[sync] Auto-recuperación: último sync fue hace ${hoursDiff}h → hoursBack=${hoursBack}`);
+    return hoursBack;
+
+  } catch (err) {
+    console.warn('[sync] No se pudo leer sync_logs:', err.message);
+    return defaultHours;
+  }
+}
+
 async function main() {
   const t0          = Date.now();
-  const hoursBack   = parseInt(process.env.HOURS_BACK   || '1', 10);
   const triggeredBy = process.env.TRIGGERED_BY || 'cron';
-
-  const range = getPreviousHourRange(hoursBack);
-  console.log(`[sync] Rango Colombia local: ${range.start}  →  ${range.end}`);
-  console.log(`[sync] Disparado por: ${triggeredBy}`);
 
   const supabase = createClient(
     process.env.SUPABASE_URL,
@@ -157,6 +187,15 @@ async function main() {
       realtime: { transport: ws },
     }
   );
+
+  // Determinar hoursBack: manual (HOURS_BACK env) o auto-calculado desde logs
+  const hoursBack = process.env.HOURS_BACK
+    ? parseInt(process.env.HOURS_BACK, 10)
+    : await getAutoHoursBack(supabase);
+
+  const range = getPreviousHourRange(hoursBack);
+  console.log(`[sync] Rango Colombia local: ${range.start}  →  ${range.end}`);
+  console.log(`[sync] hoursBack=${hoursBack} | Disparado por: ${triggeredBy}`);
 
   let recordsFetched  = 0;
   let recordsUpserted = 0;

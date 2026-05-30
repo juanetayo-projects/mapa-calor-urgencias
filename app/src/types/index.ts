@@ -95,10 +95,11 @@ export interface Filtros {
 }
 
 export interface HeatmapCell {
-  hora: number
-  key: number | string   // dia number OR nombre_dia
-  total: number
-  promedio?: number
+  hora:          number
+  key:           number | string   // dia number OR nombre_dia
+  nombre_dia:    string
+  total:         number
+  promedio?:     number
   semana_del_mes?: number
 }
 

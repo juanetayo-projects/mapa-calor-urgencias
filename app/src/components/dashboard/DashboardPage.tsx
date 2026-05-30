@@ -6,8 +6,9 @@ import HeatMap from './HeatMap'
 import WeeklyView from './WeeklyView'
 import ProfesionalesView from './ProfesionalesView'
 import AnalyticsView from './AnalyticsView'
+import { useMemo } from 'react'
 import { useStore } from '@/store/useStore'
-import { useHeatmapSemanal } from '@/hooks/useAtenciones'
+import { useHeatmapSemanal, useHeatmapMensual } from '@/hooks/useAtenciones'
 import { DIAS_SEMANA, MESES } from '@/types'
 import { HORAS } from '@/utils/heatmap'
 import { LayoutGrid, TableProperties, Users, BarChart2 } from 'lucide-react'
@@ -23,8 +24,22 @@ export default function DashboardPage() {
     ? `${MESES[filtros.mes]} ${filtros.anio}`
     : `Año ${filtros.anio}`
 
-  // ── Datos semanales: alimentan la barra de análisis y la Vista Analítica ──
+  // ── Datos semanales y mensuales ──────────────────────────────────────────
   const { data: semanalData, isLoading: semanalLoading } = useHeatmapSemanal(filtros)
+  const { data: mensualData } = useHeatmapMensual(filtros)
+
+  // Min/máx por (hora, nombre_dia) calculado desde datos mensuales (por día calendario)
+  const minMaxMap = useMemo(() => {
+    const map = new Map<string, { minimo: number; maximo: number }>()
+    ;(mensualData ?? []).forEach(row => {
+      if (!row.nombre_dia || row.total === 0) return
+      const k = `${row.hora}-${row.nombre_dia}`
+      const prev = map.get(k)
+      if (!prev) map.set(k, { minimo: row.total, maximo: row.total })
+      else map.set(k, { minimo: Math.min(prev.minimo, row.total), maximo: Math.max(prev.maximo, row.total) })
+    })
+    return map
+  }, [mensualData])
 
   const allCells = HORAS.flatMap(hora =>
     DIAS_SEMANA.map(dia => {
@@ -112,7 +127,11 @@ export default function DashboardPage() {
           {activeTab === 'semanal'       && <WeeklyView />}
           {activeTab === 'profesionales' && <ProfesionalesView />}
           {activeTab === 'analitica'     && (
-            <AnalyticsView semanalData={semanalData ?? []} isLoading={semanalLoading} />
+            <AnalyticsView
+              semanalData={semanalData ?? []}
+              isLoading={semanalLoading}
+              minMaxMap={minMaxMap}
+            />
           )}
         </div>
       </div>

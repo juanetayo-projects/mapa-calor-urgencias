@@ -242,14 +242,15 @@ function RepresentativeModal({ data, onClose }: { data: CellData[]; onClose: () 
 // ── Componente principal ────────────────────────────────────────────────────
 
 interface Props {
-  semanalData: SemanalRow[]   // Pasado desde DashboardPage (ya cargado)
+  semanalData: SemanalRow[]
   isLoading:   boolean
+  minMaxMap:   Map<string, { minimo: number; maximo: number }>
 }
 
-export default function AnalyticsView({ semanalData, isLoading }: Props) {
+export default function AnalyticsView({ semanalData, isLoading, minMaxMap }: Props) {
   const { filtros } = useStore()
 
-  // Enriquecimiento opcional: min/max por día (requiere migration 009)
+  // Enriquecimiento adicional (RPC 009) — suma los datos del minMaxMap calculado en cliente
   const { data: detailData } = useHeatmapStatsDetail(filtros)
 
   const [tooltip,   setTooltip]   = useState<TooltipState | null>(null)
@@ -259,29 +260,35 @@ export default function AnalyticsView({ semanalData, isLoading }: Props) {
     ? `${MESES[filtros.mes]} ${filtros.anio}`
     : `Año ${filtros.anio}`
 
-  // Merge: semanal + detail (si hay)
+  // Lookup con min/max: prioriza minMaxMap (calculado en cliente desde datos diarios)
+  // y enriquece con detailData (RPC 009) si está disponible
   const lookup = useCallback((hora: number, dia: string): CellData | undefined => {
     const s = (semanalData ?? []).find(r => r.hora === hora && r.nombre_dia === dia)
     if (!s) return undefined
-    const d = (detailData  ?? []).find(r => r.hora === hora && r.nombre_dia === dia)
+    const k    = `${hora}-${dia}`
+    const mm   = minMaxMap.get(k)
+    const d    = (detailData ?? []).find(r => r.hora === hora && r.nombre_dia === dia)
     return {
       hora:        s.hora,
       nombre_dia:  s.nombre_dia,
       total:       s.total,
       promedio:    s.promedio,
       occurrences: s.occurrences,
-      minimo:      d?.minimo  ?? null,
-      maximo:      d?.maximo  ?? null,
+      minimo:      mm?.minimo ?? d?.minimo ?? null,
+      maximo:      mm?.maximo ?? d?.maximo ?? null,
     }
-  }, [semanalData, detailData])
+  }, [semanalData, minMaxMap, detailData])
 
   // Todos los datos merged para el modal
   const allMerged: CellData[] = (semanalData ?? []).map(s => {
-    const d = (detailData ?? []).find(r => r.hora === s.hora && r.nombre_dia === s.nombre_dia)
+    const k  = `${s.hora}-${s.nombre_dia}`
+    const mm = minMaxMap.get(k)
+    const d  = (detailData ?? []).find(r => r.hora === s.hora && r.nombre_dia === s.nombre_dia)
     return {
       hora: s.hora, nombre_dia: s.nombre_dia,
       total: s.total, promedio: s.promedio, occurrences: s.occurrences,
-      minimo: d?.minimo ?? null, maximo: d?.maximo ?? null,
+      minimo: mm?.minimo ?? d?.minimo ?? null,
+      maximo: mm?.maximo ?? d?.maximo ?? null,
     }
   })
 

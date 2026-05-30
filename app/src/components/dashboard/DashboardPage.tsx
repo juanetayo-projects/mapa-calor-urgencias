@@ -6,15 +6,16 @@ import HeatMap from './HeatMap'
 import WeeklyView from './WeeklyView'
 import ProfesionalesView from './ProfesionalesView'
 import AnalyticsView from './AnalyticsView'
+import MensualDetailView from './MensualDetailView'
 import { useMemo } from 'react'
 import { useStore } from '@/store/useStore'
 import { useHeatmapSemanal, useHeatmapMensual } from '@/hooks/useAtenciones'
 import { DIAS_SEMANA, MESES } from '@/types'
 import { HORAS } from '@/utils/heatmap'
-import { LayoutGrid, TableProperties, Users, BarChart2 } from 'lucide-react'
+import { LayoutGrid, TableProperties, Users, BarChart2, CalendarDays } from 'lucide-react'
 import { clsx } from 'clsx'
 
-type Tab = 'heatmap' | 'semanal' | 'profesionales' | 'analitica'
+type Tab = 'heatmap' | 'semanal' | 'profesionales' | 'analitica' | 'mensual-detalle'
 
 export default function DashboardPage() {
   const { filtros } = useStore()
@@ -26,7 +27,7 @@ export default function DashboardPage() {
 
   // ── Datos semanales y mensuales ──────────────────────────────────────────
   const { data: semanalData, isLoading: semanalLoading } = useHeatmapSemanal(filtros)
-  const { data: mensualData } = useHeatmapMensual(filtros)
+  const { data: mensualData, isLoading: mensualLoading } = useHeatmapMensual(filtros)
 
   // Min/máx por (hora, nombre_dia) calculado desde datos mensuales (por día calendario)
   const minMaxMap = useMemo(() => {
@@ -59,7 +60,8 @@ export default function DashboardPage() {
     { id: 'heatmap',       label: 'Mapa de Calor',           icon: <LayoutGrid      className="w-3.5 h-3.5" /> },
     { id: 'semanal',       label: 'Resumen Semanal',          icon: <TableProperties className="w-3.5 h-3.5" /> },
     { id: 'profesionales', label: 'Profesionales requeridos', icon: <Users           className="w-3.5 h-3.5" /> },
-    { id: 'analitica',     label: 'Vista Analítica',          icon: <BarChart2       className="w-3.5 h-3.5" /> },
+    { id: 'analitica',        label: 'Vista Analítica',    icon: <BarChart2      className="w-3.5 h-3.5" /> },
+    { id: 'mensual-detalle',  label: 'Detalle Mensual',    icon: <CalendarDays   className="w-3.5 h-3.5" /> },
   ]
 
   return (
@@ -131,6 +133,12 @@ export default function DashboardPage() {
               semanalData={semanalData ?? []}
               isLoading={semanalLoading}
               minMaxMap={minMaxMap}
+            />
+          )}
+          {activeTab === 'mensual-detalle' && (
+            <MensualDetailView
+              mensualData={mensualData ?? []}
+              isLoading={mensualLoading}
             />
           )}
         </div>

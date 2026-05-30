@@ -131,6 +131,16 @@ export interface SyncLog {
   triggered_by: string
 }
 
+export interface HeatmapStatsDetail {
+  hora:        number
+  nombre_dia:  string
+  total:       number
+  promedio:    number
+  occurrences: number
+  minimo:      number
+  maximo:      number
+}
+
 export interface ReporteEmail {
   id: string
   tipo: string

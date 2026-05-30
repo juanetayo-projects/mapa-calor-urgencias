@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
-import type { Filtros, HeatmapCell, StatsData } from '@/types'
+import type { Filtros, HeatmapCell, HeatmapStatsDetail, StatsData } from '@/types'
 
 // ---- Heat map monthly (hours × calendar days) ----
 export function useHeatmapMensual(filtros: Filtros) {
@@ -51,6 +51,30 @@ export function useHeatmapSemanal(filtros: Filtros) {
         promedio: number
         occurrences: number
       }>
+    },
+    enabled: !!filtros.anio,
+    staleTime: 5 * 60_000,
+  })
+}
+
+// ---- Heatmap stats detail (promedio + min + max por hora×día) ----
+export function useHeatmapStatsDetail(filtros: Filtros) {
+  const triage    = (filtros.triage?.length   ?? 0) > 0 ? filtros.triage   : null
+  const destino   = (filtros.destinoClasificacion?.length ?? 0) > 0 ? filtros.destinoClasificacion : null
+  const ubicacion = (filtros.ubicacionTriage?.length      ?? 0) > 0 ? filtros.ubicacionTriage      : null
+  return useQuery({
+    queryKey: ['heatmap-stats-detail', filtros.anio, filtros.mes, filtros.semanaDelMes, triage, destino, ubicacion],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc('get_heatmap_stats_detail', {
+        p_anio:       filtros.anio,
+        p_mes:        filtros.mes ?? null,
+        p_semana_mes: filtros.semanaDelMes ?? null,
+        p_triage:     triage,
+        p_destino:    destino,
+        p_ubicacion:  ubicacion,
+      })
+      if (error) throw error
+      return (data ?? []) as HeatmapStatsDetail[]
     },
     enabled: !!filtros.anio,
     staleTime: 5 * 60_000,

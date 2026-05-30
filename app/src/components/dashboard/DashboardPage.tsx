@@ -5,14 +5,15 @@ import StatsCards from './StatsCards'
 import HeatMap from './HeatMap'
 import WeeklyView from './WeeklyView'
 import ProfesionalesView from './ProfesionalesView'
+import AnalyticsView from './AnalyticsView'
 import { useStore } from '@/store/useStore'
 import { useHeatmapSemanal } from '@/hooks/useAtenciones'
 import { DIAS_SEMANA, MESES } from '@/types'
 import { HORAS } from '@/utils/heatmap'
-import { LayoutGrid, TableProperties, Users } from 'lucide-react'
+import { LayoutGrid, TableProperties, Users, BarChart2 } from 'lucide-react'
 import { clsx } from 'clsx'
 
-type Tab = 'heatmap' | 'semanal' | 'profesionales'
+type Tab = 'heatmap' | 'semanal' | 'profesionales' | 'analitica'
 
 export default function DashboardPage() {
   const { filtros } = useStore()
@@ -40,9 +41,10 @@ export default function DashboardPage() {
     : '0'
 
   const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
-    { id: 'heatmap',        label: 'Mapa de Calor',           icon: <LayoutGrid      className="w-3.5 h-3.5" /> },
-    { id: 'semanal',        label: 'Resumen Semanal',          icon: <TableProperties className="w-3.5 h-3.5" /> },
-    { id: 'profesionales',  label: 'Profesionales requeridos', icon: <Users           className="w-3.5 h-3.5" /> },
+    { id: 'heatmap',       label: 'Mapa de Calor',           icon: <LayoutGrid      className="w-3.5 h-3.5" /> },
+    { id: 'semanal',       label: 'Resumen Semanal',          icon: <TableProperties className="w-3.5 h-3.5" /> },
+    { id: 'profesionales', label: 'Profesionales requeridos', icon: <Users           className="w-3.5 h-3.5" /> },
+    { id: 'analitica',     label: 'Vista Analítica',          icon: <BarChart2       className="w-3.5 h-3.5" /> },
   ]
 
   return (
@@ -109,6 +111,7 @@ export default function DashboardPage() {
           {activeTab === 'heatmap'       && <HeatMap />}
           {activeTab === 'semanal'       && <WeeklyView />}
           {activeTab === 'profesionales' && <ProfesionalesView />}
+          {activeTab === 'analitica'     && <AnalyticsView />}
         </div>
       </div>
     </div>

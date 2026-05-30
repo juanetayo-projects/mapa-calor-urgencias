@@ -23,8 +23,8 @@ export default function DashboardPage() {
     ? `${MESES[filtros.mes]} ${filtros.anio}`
     : `Año ${filtros.anio}`
 
-  // ── Análisis mensual por hora (para la barra de tabs) ────────────
-  const { data: semanalData } = useHeatmapSemanal(filtros)
+  // ── Datos semanales: alimentan la barra de análisis y la Vista Analítica ──
+  const { data: semanalData, isLoading: semanalLoading } = useHeatmapSemanal(filtros)
 
   const allCells = HORAS.flatMap(hora =>
     DIAS_SEMANA.map(dia => {
@@ -111,7 +111,9 @@ export default function DashboardPage() {
           {activeTab === 'heatmap'       && <HeatMap />}
           {activeTab === 'semanal'       && <WeeklyView />}
           {activeTab === 'profesionales' && <ProfesionalesView />}
-          {activeTab === 'analitica'     && <AnalyticsView />}
+          {activeTab === 'analitica'     && (
+            <AnalyticsView semanalData={semanalData ?? []} isLoading={semanalLoading} />
+          )}
         </div>
       </div>
     </div>

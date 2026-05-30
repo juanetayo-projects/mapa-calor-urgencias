@@ -1,10 +1,19 @@
 import { useState, useCallback } from 'react'
-import { useHeatmapSemanal, useHeatmapStatsDetail } from '@/hooks/useAtenciones'
+import { useHeatmapStatsDetail } from '@/hooks/useAtenciones'
 import { useStore } from '@/store/useStore'
 import { DIAS_SEMANA, DIAS_LABEL, MESES } from '@/types'
 import { formatHora, HORAS } from '@/utils/heatmap'
 import { Loader2, TableProperties, X, TrendingUp, ArrowUpDown, ChevronUp, ChevronDown } from 'lucide-react'
 import { clsx } from 'clsx'
+
+// Tipo interno del dato semanal recibido como prop
+interface SemanalRow {
+  hora: number
+  nombre_dia: string
+  total: number
+  promedio: number
+  occurrences: number
+}
 
 // ── Tipos internos ────────────────────────────────────────────────────────
 
@@ -232,11 +241,13 @@ function RepresentativeModal({ data, onClose }: { data: CellData[]; onClose: () 
 
 // ── Componente principal ────────────────────────────────────────────────────
 
-export default function AnalyticsView() {
-  const { filtros } = useStore()
+interface Props {
+  semanalData: SemanalRow[]   // Pasado desde DashboardPage (ya cargado)
+  isLoading:   boolean
+}
 
-  // Fuente principal: semanal (siempre funciona, incluye promedio/total/occ)
-  const { data: semanalData, isLoading } = useHeatmapSemanal(filtros)
+export default function AnalyticsView({ semanalData, isLoading }: Props) {
+  const { filtros } = useStore()
 
   // Enriquecimiento opcional: min/max por día (requiere migration 009)
   const { data: detailData } = useHeatmapStatsDetail(filtros)

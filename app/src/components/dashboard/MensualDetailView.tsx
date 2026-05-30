@@ -37,23 +37,38 @@ interface DayMeta {
 interface TooltipState {
   x: number; y: number
   dia: number; hora: number
-  meta: DayMeta; total: number; profs: number; semana: number
+  meta:    DayMeta
+  total:   number
+  profs:   number
+  semana:  number
+  // Contexto de la hora en el mes completo
+  horaMin: number
+  horaMax: number
+  horaAvg: number
 }
 
 function Tooltip({ t, mes, anio }: { t: TooltipState; mes: number | null; anio: number }) {
   const mesLabel = mes ? MESES[mes] : ''
+  const aboveAvg = t.total > t.horaAvg
+  const belowAvg = t.total < t.horaAvg
+
   return (
     <div
-      className="fixed z-50 pointer-events-none bg-slate-900 text-white rounded-xl shadow-2xl p-3 min-w-[210px]"
+      className="fixed z-50 pointer-events-none bg-slate-900 text-white rounded-xl shadow-2xl p-3 min-w-[230px]"
       style={{ left: t.x + 12, top: t.y - 10 }}
     >
       <p className="font-semibold text-sm mb-2 text-sky-300">
         {formatHora(t.hora)} · {t.meta.abbrev} {t.dia} {mesLabel} {anio}
       </p>
       <div className="space-y-1 text-xs">
-        <div className="flex justify-between gap-4">
-          <span className="text-slate-400">Pacientes</span>
-          <strong className="text-yellow-300 text-sm">{t.total}</strong>
+        {/* Valor del día */}
+        <div className="flex justify-between gap-4 items-center">
+          <span className="text-slate-400">Pacientes este día</span>
+          <span className="flex items-center gap-1">
+            <strong className="text-yellow-300 text-sm">{t.total}</strong>
+            {aboveAvg && <span className="text-[9px] text-red-400 font-bold">▲ sobre prom.</span>}
+            {belowAvg && <span className="text-[9px] text-green-400 font-bold">▼ bajo prom.</span>}
+          </span>
         </div>
         <div className="flex justify-between gap-4">
           <span className="text-slate-400">Prof. requeridos</span>
@@ -63,6 +78,26 @@ function Tooltip({ t, mes, anio }: { t: TooltipState; mes: number | null; anio: 
           <span className="text-slate-400">Semana del mes</span>
           <strong className="text-slate-300">{t.semana}ª semana</strong>
         </div>
+
+        {/* Contexto mensual de la hora */}
+        <div className="border-t border-slate-700 pt-1.5 mt-1.5">
+          <p className="text-[9px] text-slate-500 uppercase tracking-wide mb-1">
+            Esta hora en todo el mes
+          </p>
+          <div className="flex justify-between gap-4">
+            <span className="text-slate-400">Mínimo</span>
+            <strong className="text-green-400">{t.horaMin} pac.</strong>
+          </div>
+          <div className="flex justify-between gap-4">
+            <span className="text-slate-400">Máximo</span>
+            <strong className="text-red-400">{t.horaMax} pac.</strong>
+          </div>
+          <div className="flex justify-between gap-4">
+            <span className="text-slate-400">Promedio</span>
+            <strong className="text-sky-300">{t.horaAvg.toFixed(1)} pac.</strong>
+          </div>
+        </div>
+
         {(t.meta.isSunday || t.meta.isHoliday) && (
           <div className={clsx(
             'text-center text-[10px] rounded px-2 py-0.5 mt-1 font-medium',
@@ -281,20 +316,39 @@ export default function MensualDetailView({ mensualData, isLoading }: Props) {
     return vals.length ? vals.reduce((s, v) => s + v, 0) / vals.length : 0
   }
 
+  // Estadísticas por hora: mín/máx/prom a lo largo de todos los días del mes
+  const hourStats = useMemo(() => {
+    const map = new Map<number, { min: number; max: number; avg: number }>()
+    HORAS.forEach(hora => {
+      const vals = mensualData.filter(r => r.hora === hora && r.total > 0).map(r => r.total)
+      if (!vals.length) return
+      map.set(hora, {
+        min: Math.min(...vals),
+        max: Math.max(...vals),
+        avg: Math.round(vals.reduce((s, v) => s + v, 0) / vals.length * 10) / 10,
+      })
+    })
+    return map
+  }, [mensualData])
+
   // Tooltip handler
   const handleEnter = useCallback((e: React.MouseEvent, hora: number, dia: number, cell: HeatmapCell) => {
-    const meta  = dayMeta.get(dia)
+    const meta = dayMeta.get(dia)
     if (!meta) return
     const rect  = (e.currentTarget as HTMLElement).getBoundingClientRect()
     const profs = calcProfesionales(cell.total, filtros.minutos)
+    const hs    = hourStats.get(hora)
     setTooltip({
       x: rect.right, y: rect.top,
       hora, dia, meta,
-      total:  cell.total,
+      total:   cell.total,
       profs,
-      semana: cell.semana_del_mes ?? 1,
+      semana:  cell.semana_del_mes ?? 1,
+      horaMin: hs?.min ?? cell.total,
+      horaMax: hs?.max ?? cell.total,
+      horaAvg: hs?.avg ?? cell.total,
     })
-  }, [dayMeta, filtros.minutos])
+  }, [dayMeta, filtros.minutos, hourStats])
 
   // Filas para el modal
   const modalRows = useMemo((): ModalRow[] => {

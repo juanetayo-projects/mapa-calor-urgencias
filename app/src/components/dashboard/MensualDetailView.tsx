@@ -52,10 +52,19 @@ function Tooltip({ t, mes, anio }: { t: TooltipState; mes: number | null; anio: 
   const aboveAvg = t.total > t.horaAvg
   const belowAvg = t.total < t.horaAvg
 
+  // Posición inteligente: flip hacia arriba si la celda está en la mitad inferior
+  const flipUp   = typeof window !== 'undefined' && t.y > window.innerHeight * 0.55
+  const flipLeft = typeof window !== 'undefined' && t.x > window.innerWidth  * 0.65
+
+  const posStyle: React.CSSProperties = {
+    ...(flipLeft  ? { right: window.innerWidth  - t.x + 8 } : { left: t.x + 12 }),
+    ...(flipUp    ? { bottom: window.innerHeight - t.y + 8 } : { top: t.y - 10  }),
+  }
+
   return (
     <div
       className="fixed z-50 pointer-events-none bg-slate-900 text-white rounded-xl shadow-2xl p-3 min-w-[230px]"
-      style={{ left: t.x + 12, top: t.y - 10 }}
+      style={posStyle}
     >
       <p className="font-semibold text-sm mb-2 text-sky-300">
         {formatHora(t.hora)} · {t.meta.abbrev} {t.dia} {mesLabel} {anio}

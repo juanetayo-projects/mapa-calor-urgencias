@@ -9,7 +9,7 @@
 
 Aplicación web SaaS para el análisis de demanda de atención en urgencias de la
 **Clínica Santa Bárbara de Alta Complejidad** (Villavicencio, Colombia).
-Desarrollado por el **Ing. Juan Carlos Etayo**.
+Desarrollado por el **Ing. Juan Carlos Etayo Ruiz**.
 
 **URL producción:** https://juanetayo-projects.github.io/mapa-calor-urgencias/  
 **Repositorio:** https://github.com/juanetayo-projects/mapa-calor-urgencias  
@@ -213,7 +213,7 @@ sync_logs ← registro de cada ejecución
 3. **Picos resaltados:** celdas con ≥85% del valor máximo tienen ring rojo
    y fondo rojo suave en WeeklyView y ProfesionalesView.
 
-4. **Footer:** `Layout.tsx` tiene `<footer>` con "Desarrollado por: Ing. Juan Carlos Etayo"
+4. **Footer:** `Layout.tsx` tiene `<footer>` con "Desarrollado por: Ing. Juan Carlos Etayo Ruiz"
    en color slate-300 al fondo de cada página.
 
 5. **Tooltip MensualDetailView:** usa `flipUp`/`flipLeft` para voltear si la

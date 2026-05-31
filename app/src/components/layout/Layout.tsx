@@ -22,7 +22,7 @@ export default function Layout() {
         {/* Footer */}
         <footer className="py-1.5 px-4 border-t border-slate-100 bg-slate-50">
           <p className="text-[10px] text-slate-300 text-center tracking-wide">
-            Desarrollado por: Ing. Juan Carlos Etayo
+            Desarrollado por: Ing. Juan Carlos Etayo Ruiz
           </p>
         </footer>
       </main>

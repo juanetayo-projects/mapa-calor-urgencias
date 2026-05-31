@@ -2,7 +2,7 @@
 
 Sistema web de análisis visual para el servicio de urgencias. Visualiza la distribución de atenciones por hora y día, calcula profesionales requeridos, aplica filtros avanzados y sincroniza automáticamente desde SQL Server Azure (Gomedisys) cada hora.
 
-**Desarrollado por:** Ing. Juan Carlos Etayo  
+**Desarrollado por:** Ing. Juan Carlos Etayo Ruiz  
 **URL producción:** https://juanetayo-projects.github.io/mapa-calor-urgencias/  
 **Repositorio:** https://github.com/juanetayo-projects/mapa-calor-urgencias
 
@@ -361,4 +361,4 @@ Verde (1) → Verde oscuro (2) → Amarillo (3) → Naranja (4) → Rojo claro (
 
 ---
 
-© Clínica Santa Bárbara de Alta Complejidad · Desarrollado por Ing. Juan Carlos Etayo
+© Clínica Santa Bárbara de Alta Complejidad · Desarrollado por Ing. Juan Carlos Etayo Ruiz

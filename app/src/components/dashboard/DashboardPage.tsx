@@ -71,11 +71,9 @@ export default function DashboardPage() {
         subtitle={`Clínica Santa Bárbara · ${periodoLabel}${filtros.triage.length > 0 ? ` · ${filtros.triage.join(', ')}` : ''}${filtros.destinoClasificacion.length > 0 ? ` · ${filtros.destinoClasificacion.join(', ')}` : ''}${filtros.ubicacionTriage.length > 0 ? ` · ${filtros.ubicacionTriage.join(', ')}` : ''}`}
       />
 
-      <div className="flex-1 p-3 flex flex-col gap-2 min-h-0">
-        {/* Filters */}
+      {/* ── Sección fija: filtros + KPIs + tabs (no scrollea) ── */}
+      <div className="flex-shrink-0 px-3 pt-3 pb-0 flex flex-col gap-2 bg-slate-50">
         <FiltersPanel />
-
-        {/* KPI Cards */}
         <StatsCards />
 
         {/* Tabs + Análisis mensual por hora */}
@@ -123,8 +121,10 @@ export default function DashboardPage() {
           )}
         </div>
 
-        {/* Content — solo esta área scrollea verticalmente */}
-        <div className="flex-1 min-h-0 overflow-y-auto">
+      </div>
+
+      {/* ── Área de contenido: solo esta scrollea verticalmente ── */}
+      <div className="flex-1 min-h-0 overflow-y-auto px-3 pb-3 pt-2">
           {activeTab === 'heatmap'       && <HeatMap />}
           {activeTab === 'semanal'       && <WeeklyView />}
           {activeTab === 'profesionales' && <ProfesionalesView />}
@@ -141,7 +141,6 @@ export default function DashboardPage() {
               isLoading={mensualLoading}
             />
           )}
-        </div>
       </div>
     </div>
   )

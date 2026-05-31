@@ -438,7 +438,7 @@ export default function MensualDetailView({ mensualData, isLoading }: Props) {
         </div>
 
         {/* ── Tabla ── */}
-        <div className="overflow-auto max-h-[70vh]">
+        <div className="overflow-auto">
           <table className="border-collapse text-xs" style={{ minWidth: `${90 + daysInMonth * 46}px` }}>
             <thead className="sticky top-0 z-20">
               <tr className="bg-slate-100 border-b-2 border-slate-300">

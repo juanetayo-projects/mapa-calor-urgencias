@@ -64,7 +64,7 @@ export default function ProfesionalesView() {
   const peakThreshold = maxPac > 0 ? maxPac * 0.85 : Infinity
 
   return (
-    <div className="card p-4 overflow-auto">
+    <div className="card p-4">
       {/* Header */}
       <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
         <div className="flex items-center gap-2">

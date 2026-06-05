@@ -107,7 +107,7 @@ export default function SyncPage() {
     <div className="flex flex-col h-full">
       <Header
         title="Sincronización Automática"
-        subtitle="SQL Server (Azure) → Supabase · cada hora a los :05"
+        subtitle="SQL Server (Azure) → Supabase · sincronización cada 15 minutos"
       />
 
       <div className="flex-1 p-5 space-y-5 overflow-auto">

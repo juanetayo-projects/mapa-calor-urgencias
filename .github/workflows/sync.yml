@@ -7,9 +7,9 @@ on:
   workflow_dispatch:
     inputs:
       hours_back:
-        description: "Horas hacia atrás a sincronizar (default: 1)"
+        description: "Horas hacia atrás a sincronizar (0 = modo incremental automático)"
         required: false
-        default: "1"
+        default: "0"
 
 jobs:
   sync:
@@ -38,7 +38,7 @@ jobs:
           GOMEDISYS_PASSWORD:   ${{ secrets.GOMEDISYS_PASSWORD }}
           SUPABASE_URL:         ${{ secrets.VITE_SUPABASE_URL }}
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-          HOURS_BACK:           ${{ github.event.inputs.hours_back || '1' }}
+          HOURS_BACK:           ${{ github.event.inputs.hours_back || '0' }}
           TRIGGERED_BY:         ${{ github.event_name == 'workflow_dispatch' && 'manual' || 'cron' }}
         run: node index.js
         working-directory: ./scripts/sync

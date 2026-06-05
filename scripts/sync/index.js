@@ -212,10 +212,11 @@ async function main() {
     }
   );
 
-  // HOURS_BACK explícito → recuperación por horas completas (manual)
-  // Sin HOURS_BACK → modo incremental: desde último sync hasta ahora
-  const range = process.env.HOURS_BACK
-    ? getPreviousHourRange(parseInt(process.env.HOURS_BACK, 10))
+  // HOURS_BACK > 0  → recuperación por horas completas (modo manual)
+  // HOURS_BACK = 0 o vacío → modo incremental: desde último sync hasta ahora
+  const hoursBackEnv = parseInt(process.env.HOURS_BACK || '0', 10);
+  const range = hoursBackEnv > 0
+    ? getPreviousHourRange(hoursBackEnv)
     : await getRangeSinceLastSync(supabase);
 
   console.log(`[sync] Rango Colombia local: ${range.start}  →  ${range.end}`);

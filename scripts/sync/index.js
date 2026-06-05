@@ -140,13 +140,24 @@ function mapRow(row) {
 
 // ── Main ───────────────────────────────────────────────────────────────────
 
-// ── Auto-recuperación de horas perdidas ───────────────────────────────────
+// ── Rango "desde el último sync exitoso hasta ahora" ─────────────────────
 //
-// Si HOURS_BACK no está definido manualmente, consulta sync_logs para saber
-// cuánto tiempo pasó desde el último sync exitoso y recuperar el gap completo.
-// Esto soluciona la falta de confiabilidad del cron de GitHub Actions.
+// Para sincronización cada 15 min: cada run captura exactamente las
+// atenciones nuevas desde que terminó el run anterior hasta este momento.
+// Si no hay sync previo (o HOURS_BACK está definido), usa el rango por horas.
 
-async function getAutoHoursBack(supabase, defaultHours = 1) {
+function fmtColombia(ms) {
+  const d = new Date(ms);
+  const Y = d.getUTCFullYear();
+  const M = String(d.getUTCMonth() + 1).padStart(2, '0');
+  const D = String(d.getUTCDate()).padStart(2, '0');
+  const h = String(d.getUTCHours()).padStart(2, '0');
+  const m = String(d.getUTCMinutes()).padStart(2, '0');
+  const s = String(d.getUTCSeconds()).padStart(2, '0');
+  return `${Y}-${M}-${D} ${h}:${m}:${s}`;
+}
+
+async function getRangeSinceLastSync(supabase) {
   try {
     const { data, error } = await supabase
       .from('sync_logs')
@@ -155,23 +166,36 @@ async function getAutoHoursBack(supabase, defaultHours = 1) {
       .order('executed_at', { ascending: false })
       .limit(1);
 
-    if (error || !data?.length || !data[0].sync_to) {
-      console.log(`[sync] Sin sync previo exitoso encontrado, usando ${defaultHours}h`);
-      return defaultHours;
+    const nowColombiaMs = Date.now() + COLOMBIA_OFFSET_H * 3_600_000;
+
+    let startMs;
+    if (!error && data?.length && data[0].sync_to) {
+      // Empezar desde donde terminó el último sync exitoso
+      startMs = new Date(data[0].sync_to).getTime();
+      // Seguridad: máximo 24h hacia atrás
+      const maxBackMs = nowColombiaMs - 24 * 3_600_000;
+      if (startMs < maxBackMs) {
+        console.log('[sync] Gap > 24h detectado, limitando a 24h');
+        startMs = maxBackMs;
+      }
+      const minsDiff = Math.round((nowColombiaMs - startMs) / 60_000);
+      console.log(`[sync] Modo incremental: desde último sync hace ${minsDiff} min`);
+    } else {
+      // Sin sync previo: cubrir la última hora
+      startMs = nowColombiaMs - 1 * 3_600_000;
+      console.log('[sync] Sin sync previo, usando última hora por defecto');
     }
 
-    // sync_to almacena la hora Colombia como si fuera UTC (ver COLOMBIA_OFFSET_H)
-    const lastSyncToMs  = new Date(data[0].sync_to).getTime();
-    const nowColombiaMs = Date.now() + COLOMBIA_OFFSET_H * 3_600_000;
-    const hoursDiff     = Math.ceil((nowColombiaMs - lastSyncToMs) / 3_600_000);
-    const hoursBack     = Math.min(Math.max(hoursDiff, 1), 24); // entre 1 y 24
-
-    console.log(`[sync] Auto-recuperación: último sync fue hace ${hoursDiff}h → hoursBack=${hoursBack}`);
-    return hoursBack;
+    return {
+      start:    fmtColombia(startMs),
+      end:      fmtColombia(nowColombiaMs),
+      startISO: new Date(startMs).toISOString(),
+      endISO:   new Date(nowColombiaMs).toISOString(),
+    };
 
   } catch (err) {
     console.warn('[sync] No se pudo leer sync_logs:', err.message);
-    return defaultHours;
+    return getPreviousHourRange(1);
   }
 }
 
@@ -188,14 +212,14 @@ async function main() {
     }
   );
 
-  // Determinar hoursBack: manual (HOURS_BACK env) o auto-calculado desde logs
-  const hoursBack = process.env.HOURS_BACK
-    ? parseInt(process.env.HOURS_BACK, 10)
-    : await getAutoHoursBack(supabase);
+  // HOURS_BACK explícito → recuperación por horas completas (manual)
+  // Sin HOURS_BACK → modo incremental: desde último sync hasta ahora
+  const range = process.env.HOURS_BACK
+    ? getPreviousHourRange(parseInt(process.env.HOURS_BACK, 10))
+    : await getRangeSinceLastSync(supabase);
 
-  const range = getPreviousHourRange(hoursBack);
   console.log(`[sync] Rango Colombia local: ${range.start}  →  ${range.end}`);
-  console.log(`[sync] hoursBack=${hoursBack} | Disparado por: ${triggeredBy}`);
+  console.log(`[sync] Disparado por: ${triggeredBy}`);
 
   let recordsFetched  = 0;
   let recordsUpserted = 0;

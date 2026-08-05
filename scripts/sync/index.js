@@ -9,6 +9,7 @@
  *   Si los datos están en UTC, cambiar COLOMBIA_OFFSET_H a 0.
  */
 
+require('dotenv').config();
 const sql      = require('mssql');
 const { createClient } = require('@supabase/supabase-js');
 const ws       = require('ws');
@@ -255,22 +256,34 @@ async function main() {
     recordsFetched = result.recordset.length;
     console.log(`[sync] Registros obtenidos: ${recordsFetched}`);
 
-    // ── 3. Transformar y hacer upsert ────────────────────────────
+    // ── 3. Transformar, deduplicar y hacer upsert ───────────────
     if (recordsFetched > 0) {
       const rows = result.recordset
         .map(mapRow)
         .filter(r => r.sync_key !== null);  // solo filas con clave única
 
+      // Deduplicar: quedarse con el último registro de cada sync_key
+      // (el último es el más actualizado según el orden de SQL Server)
+      const deduped = new Map();
+      for (const row of rows) {
+        deduped.set(row.sync_key, row);
+      }
+      const uniqueRows = [...deduped.values()];
+
+      if (rows.length !== uniqueRows.length) {
+        console.log(`[sync] Duplicados detectados: ${rows.length} → ${uniqueRows.length} únicos`);
+      }
+
       const BATCH = 200;
-      for (let i = 0; i < rows.length; i += BATCH) {
-        const batch = rows.slice(i, i + BATCH);
+      for (let i = 0; i < uniqueRows.length; i += BATCH) {
+        const batch = uniqueRows.slice(i, i + BATCH);
         const { error } = await supabase
           .from('atenciones')
           .upsert(batch, { onConflict: 'sync_key' });
 
         if (error) throw new Error(`Supabase upsert: ${error.message}`);
         recordsUpserted += batch.length;
-        console.log(`[sync] Upserted ${recordsUpserted}/${rows.length}`);
+        console.log(`[sync] Upserted ${recordsUpserted}/${uniqueRows.length}`);
       }
     }
 

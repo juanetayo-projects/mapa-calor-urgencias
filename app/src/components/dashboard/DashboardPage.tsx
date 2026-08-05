@@ -7,12 +7,13 @@ import WeeklyView from './WeeklyView'
 import ProfesionalesView from './ProfesionalesView'
 import AnalyticsView from './AnalyticsView'
 import MensualDetailView from './MensualDetailView'
+import SinClasificacionModal from './SinClasificacionModal'
 import { useMemo } from 'react'
 import { useStore } from '@/store/useStore'
 import { useHeatmapSemanal, useHeatmapMensual } from '@/hooks/useAtenciones'
 import { DIAS_SEMANA, MESES } from '@/types'
 import { HORAS } from '@/utils/heatmap'
-import { LayoutGrid, TableProperties, Users, BarChart2, CalendarDays } from 'lucide-react'
+import { LayoutGrid, TableProperties, Users, BarChart2, CalendarDays, AlertTriangle } from 'lucide-react'
 import { clsx } from 'clsx'
 
 type Tab = 'heatmap' | 'semanal' | 'profesionales' | 'analitica' | 'mensual-detalle'
@@ -20,6 +21,7 @@ type Tab = 'heatmap' | 'semanal' | 'profesionales' | 'analitica' | 'mensual-deta
 export default function DashboardPage() {
   const { filtros } = useStore()
   const [activeTab, setActiveTab] = useState<Tab>('heatmap')
+  const [showSinClasificacion, setShowSinClasificacion] = useState(false)
 
   const periodoLabel = filtros.mes
     ? `${MESES[filtros.mes]} ${filtros.anio}`
@@ -117,6 +119,13 @@ export default function DashboardPage() {
                   Total <strong className="text-slate-700 text-xs">{totalPac.toLocaleString('es-CO')}</strong>
                 </span>
               </div>
+              <button
+                onClick={() => setShowSinClasificacion(true)}
+                className="flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded-lg hover:bg-amber-100 transition-colors"
+              >
+                <AlertTriangle className="w-3 h-3" />
+                Sin clasificar
+              </button>
             </div>
           )}
         </div>
@@ -142,6 +151,12 @@ export default function DashboardPage() {
             />
           )}
       </div>
+
+      {/* ── Modal: Atenciones sin clasificación ── */}
+      <SinClasificacionModal
+        open={showSinClasificacion}
+        onClose={() => setShowSinClasificacion(false)}
+      />
     </div>
   )
 }

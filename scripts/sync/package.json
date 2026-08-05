@@ -3,12 +3,15 @@
   "version": "1.0.0",
   "private": true,
   "description": "Sync horario desde SQL Server (Azure) hacia Supabase",
-  "engines": { "node": ">=20" },
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "start": "node index.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.45.0",
+    "dotenv": "^17.4.2",
     "mssql": "^11.0.1",
     "ws": "^8.18.0"
   }

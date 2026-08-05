@@ -164,6 +164,34 @@ export function useUbicacionDisponibles() {
   })
 }
 
+// ---- Atenciones sin clasificación de triage (para modal de revisión) ----
+export function useAtencionesSinClasificacion(anio: number, mes: number | null) {
+  return useQuery({
+    queryKey: ['atenciones-sin-clasificacion', anio, mes],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc('get_atenciones_sin_clasificacion', {
+        p_anio: anio,
+        p_mes: mes ?? null,
+      })
+      if (error) throw error
+      return (data ?? []) as Array<{
+        id: string
+        ingreso: string | null
+        documento: string | null
+        nombre: string | null
+        fecha_triage: string | null
+        hora_triage: string | null
+        clasificacion_triage: string | null
+        destino_clasificacion: string | null
+        ubicacion_triage: string | null
+        profesional_clasifica: string | null
+      }>
+    },
+    enabled: !!anio,
+    staleTime: 5 * 60_000,
+  })
+}
+
 // ---- Configuration ----
 export function useConfiguracion() {
   return useQuery({

@@ -8,6 +8,14 @@ import { clsx } from 'clsx'
 
 // ── Componente multi-select reutilizable ──────────────────────────────────
 
+// Valor sentinela para registros sin clasificación de triage
+export const SIN_CLASIFICACION_KEY = '__SIN_CLASIFICACION__'
+const SIN_CLASIFICACION_LABEL = 'Sin clasificación'
+
+function formatTriageLabel(value: string): string {
+  return value === SIN_CLASIFICACION_KEY ? SIN_CLASIFICACION_LABEL : value
+}
+
 interface MultiSelectProps {
   label: string
   options: string[]
@@ -79,7 +87,7 @@ function MultiSelect({ label, options, selected, onChange, allLabel = 'Todos' }:
                   onChange={() => toggle(opt)}
                   className="w-3 h-3 accent-clinic-600"
                 />
-                <span className="text-xs text-slate-700">{opt}</span>
+                <span className="text-xs text-slate-700">{formatTriageLabel(opt)}</span>
               </label>
             ))}
           </div>

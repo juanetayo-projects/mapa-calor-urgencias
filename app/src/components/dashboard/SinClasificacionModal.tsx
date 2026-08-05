@@ -31,7 +31,13 @@ export default function SinClasificacionModal({ open, onClose }: SinClasificacio
     ? `${MESES[filtros.mes]} ${filtros.anio}`
     : `Año ${filtros.anio}`
 
-  const maxDias = filtros.mes ? DIAS_POR_MES[filtros.mes] ?? 31 : 31
+  const now = new Date()
+  const esMesActual = filtros.anio === now.getFullYear() && filtros.mes === now.getMonth() + 1
+  const maxDias = filtros.mes
+    ? esMesActual
+      ? Math.min(DIAS_POR_MES[filtros.mes] ?? 31, now.getDate())
+      : DIAS_POR_MES[filtros.mes] ?? 31
+    : 31
 
   function exportToCSV() {
     const headers = ['#', 'Ingreso', 'Documento', 'Nombre', 'Fecha Triage', 'Hora Triage', 'Destino', 'Ubicación', 'Profesional']

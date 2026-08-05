@@ -20,6 +20,7 @@ RETURNS TABLE (
   nombre                text,
   fecha_triage          text,
   hora_triage           text,
+  clasificacion_triage  text,
   destino_clasificacion text,
   ubicacion_triage      text,
   profesional_clasifica text
@@ -34,6 +35,7 @@ AS $$
     a.nombre,
     a.fecha_triage::text,
     TO_CHAR(a.hora_triage, 'HH24:MI:SS'),
+    a.clasificacion_triage,
     a.destino_clasificacion,
     a.ubicacion_triage,
     a.profesional_clasifica

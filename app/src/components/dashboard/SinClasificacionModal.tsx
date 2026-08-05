@@ -40,7 +40,7 @@ export default function SinClasificacionModal({ open, onClose }: SinClasificacio
     : 31
 
   function exportToCSV() {
-    const headers = ['#', 'Ingreso', 'Documento', 'Nombre', 'Fecha Triage', 'Hora Triage', 'Destino', 'Ubicación', 'Profesional']
+    const headers = ['#', 'Ingreso', 'Documento', 'Nombre', 'Fecha Triage', 'Hora Triage', 'Clasificación', 'Destino', 'Ubicación', 'Profesional']
     const rows = registros.map((r, i) => [
       i + 1,
       r.ingreso ?? '',
@@ -48,6 +48,7 @@ export default function SinClasificacionModal({ open, onClose }: SinClasificacio
       r.nombre ?? '',
       r.fecha_triage ?? '',
       r.hora_triage ?? '',
+      r.clasificacion_triage ?? '',
       r.destino_clasificacion ?? '',
       r.ubicacion_triage ?? '',
       r.profesional_clasifica ?? '',
@@ -140,6 +141,7 @@ export default function SinClasificacionModal({ open, onClose }: SinClasificacio
                     <th className="px-3 py-2 text-left font-semibold text-slate-600 border-b">Nombre</th>
                     <th className="px-3 py-2 text-left font-semibold text-slate-600 border-b">Fecha Triage</th>
                     <th className="px-3 py-2 text-left font-semibold text-slate-600 border-b">Hora</th>
+                    <th className="px-3 py-2 text-left font-semibold text-slate-600 border-b">Clasificación</th>
                     <th className="px-3 py-2 text-left font-semibold text-slate-600 border-b">Destino</th>
                     <th className="px-3 py-2 text-left font-semibold text-slate-600 border-b">Ubicación</th>
                     <th className="px-3 py-2 text-left font-semibold text-slate-600 border-b">Profesional</th>
@@ -154,6 +156,7 @@ export default function SinClasificacionModal({ open, onClose }: SinClasificacio
                       <td className="px-3 py-2 text-slate-700 max-w-[200px] truncate">{r.nombre ?? '—'}</td>
                       <td className="px-3 py-2 text-slate-700">{r.fecha_triage ?? '—'}</td>
                       <td className="px-3 py-2 text-slate-700">{r.hora_triage ?? '—'}</td>
+                      <td className="px-3 py-2 text-slate-700">{r.clasificacion_triage ?? '—'}</td>
                       <td className="px-3 py-2 text-slate-700">{r.destino_clasificacion ?? '—'}</td>
                       <td className="px-3 py-2 text-slate-700">{r.ubicacion_triage ?? '—'}</td>
                       <td className="px-3 py-2 text-slate-700 max-w-[150px] truncate">{r.profesional_clasifica ?? '—'}</td>

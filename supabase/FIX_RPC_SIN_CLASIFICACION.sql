@@ -3,7 +3,6 @@
  * https://supabase.com/dashboard/project/zuqqhglrxhexlazxcqgl/sql/new
  */
 
--- Corregir RPC para obtener atenciones sin clasificación (con filtro de día opcional)
 CREATE OR REPLACE FUNCTION public.get_atenciones_sin_clasificacion(
   p_anio   integer,
   p_mes    integer DEFAULT NULL,
@@ -32,7 +31,7 @@ BEGIN
     a.documento,
     a.nombre,
     a.fecha_triage,
-    a.hora_triage,
+    TO_CHAR(a.hora_triage, 'HH24:MI:SS'),
     a.clasificacion_triage,
     a.destino_clasificacion,
     a.ubicacion_triage,

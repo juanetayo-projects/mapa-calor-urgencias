@@ -1,4 +1,5 @@
-import { X, AlertTriangle, Download } from 'lucide-react'
+import { useState } from 'react'
+import { X, AlertTriangle, Download, Calendar } from 'lucide-react'
 import { useAtencionesSinClasificacion } from '@/hooks/useAtenciones'
 import { useStore } from '@/store/useStore'
 import { MESES } from '@/types'
@@ -8,11 +9,20 @@ interface SinClasificacionModalProps {
   onClose: () => void
 }
 
+// Días por mes (para 2026)
+const DIAS_POR_MES: Record<number, number> = {
+  1: 31, 2: 28, 3: 31, 4: 30, 5: 31, 6: 30,
+  7: 31, 8: 31, 9: 30, 10: 31, 11: 30, 12: 31,
+}
+
 export default function SinClasificacionModal({ open, onClose }: SinClasificacionModalProps) {
   const { filtros } = useStore()
+  const [diaSeleccionado, setDiaSeleccionado] = useState<number | null>(null)
+
   const { data: registros = [], isLoading } = useAtencionesSinClasificacion(
     filtros.anio,
-    filtros.mes
+    filtros.mes,
+    diaSeleccionado
   )
 
   if (!open) return null
@@ -20,6 +30,8 @@ export default function SinClasificacionModal({ open, onClose }: SinClasificacio
   const periodoLabel = filtros.mes
     ? `${MESES[filtros.mes]} ${filtros.anio}`
     : `Año ${filtros.anio}`
+
+  const maxDias = filtros.mes ? DIAS_POR_MES[filtros.mes] ?? 31 : 31
 
   function exportToCSV() {
     const headers = ['#', 'Ingreso', 'Documento', 'Nombre', 'Fecha Triage', 'Hora Triage', 'Destino', 'Ubicación', 'Profesional']
@@ -39,14 +51,18 @@ export default function SinClasificacionModal({ open, onClose }: SinClasificacio
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = `sin_clasificacion_${filtros.anio}_${filtros.mes ?? 'todos'}.csv`
+    a.download = `sin_clasificacion_${filtros.anio}_${filtros.mes ?? 'todos'}${diaSeleccionado ? `_dia${diaSeleccionado}` : ''}.csv`
     a.click()
     URL.revokeObjectURL(url)
   }
 
+  const periodoDetalle = diaSeleccionado
+    ? `${periodoLabel} · Día ${diaSeleccionado}`
+    : periodoLabel
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-      <div className="bg-white rounded-xl shadow-2xl w-[95vw] max-w-5xl max-h-[85vh] flex flex-col">
+      <div className="bg-white rounded-xl shadow-2xl w-[95vw] max-w-6xl max-h-[85vh] flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-3 border-b border-slate-200">
           <div className="flex items-center gap-3">
@@ -58,11 +74,26 @@ export default function SinClasificacionModal({ open, onClose }: SinClasificacio
                 Atenciones sin clasificación de Triage
               </h2>
               <p className="text-xs text-slate-500">
-                {periodoLabel} · {registros.length} registros para revisar
+                {periodoDetalle} · {registros.length} registros
               </p>
             </div>
           </div>
           <div className="flex items-center gap-2">
+            {/* Selector de día */}
+            <div className="flex items-center gap-1.5">
+              <Calendar className="w-3.5 h-3.5 text-slate-400" />
+              <select
+                className="text-xs border border-slate-200 rounded-lg px-2 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-clinic-400"
+                value={diaSeleccionado ?? ''}
+                onChange={(e) => setDiaSeleccionado(e.target.value ? Number(e.target.value) : null)}
+              >
+                <option value="">Todos los días</option>
+                {Array.from({ length: maxDias }, (_, i) => i + 1).map(d => (
+                  <option key={d} value={d}>Día {d}</option>
+                ))}
+              </select>
+            </div>
+
             {registros.length > 0 && (
               <button
                 onClick={exportToCSV}
@@ -90,7 +121,7 @@ export default function SinClasificacionModal({ open, onClose }: SinClasificacio
           ) : registros.length === 0 ? (
             <div className="text-center py-12">
               <AlertTriangle className="w-12 h-12 text-slate-300 mx-auto mb-3" />
-              <p className="text-sm text-slate-500">No hay registros sin clasificación en este período</p>
+              <p className="text-sm text-slate-500">No hay registros sin clasificación en {periodoDetalle}</p>
             </div>
           ) : (
             <div className="border border-slate-200 rounded-lg overflow-hidden">
@@ -131,7 +162,7 @@ export default function SinClasificacionModal({ open, onClose }: SinClasificacio
         {/* Footer */}
         <div className="px-5 py-3 border-t border-slate-200 bg-slate-50 rounded-b-xl">
           <p className="text-xs text-slate-500">
-            Estos registros no tienen clasificación de triage en la fuente (GoMedisys). 
+            Estos registros no tienen clasificación de triage en la fuente (GoMedisys).
             Revise uno a uno para determinar la causa de la falla.
           </p>
         </div>

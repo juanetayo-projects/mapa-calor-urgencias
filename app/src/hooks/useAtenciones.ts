@@ -165,13 +165,14 @@ export function useUbicacionDisponibles() {
 }
 
 // ---- Atenciones sin clasificación de triage (para modal de revisión) ----
-export function useAtencionesSinClasificacion(anio: number, mes: number | null) {
+export function useAtencionesSinClasificacion(anio: number, mes: number | null, dia: number | null) {
   return useQuery({
-    queryKey: ['atenciones-sin-clasificacion', anio, mes],
+    queryKey: ['atenciones-sin-clasificacion', anio, mes, dia],
     queryFn: async () => {
       const { data, error } = await supabase.rpc('get_atenciones_sin_clasificacion', {
         p_anio: anio,
         p_mes: mes ?? null,
+        p_dia: dia ?? null,
       })
       if (error) throw error
       return (data ?? []) as Array<{

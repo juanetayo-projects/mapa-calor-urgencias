@@ -196,5 +196,11 @@ OUTER APPLY (
     ORDER BY ehre.actionRecordedDate ASC
 ) AS UrgenciasInicial
 -- ── Filtro horario (Colombia local time) ────────────────────────
-WHERE ehrt.dateStartTriage >= CONVERT(datetime, @StartDate)
-  AND ehrt.dateStartTriage <  CONVERT(datetime, @EndDate);
+-- Incluye tanto los triages iniciados en la ventana como los clasificados
+-- en la ventana: la clasificación (ClasificacionTriage) casi nunca está
+-- lista en el instante del triage, sino minutos/horas después. Sin esta
+-- segunda condición, un registro capturado antes de ser clasificado
+-- (sync_key = triage:documento:fecha:hora, sin idEncounter todavía) nunca
+-- se vuelve a consultar y queda congelado para siempre con clasificación NULL.
+WHERE (ehrt.dateStartTriage    >= CONVERT(datetime, @StartDate) AND ehrt.dateStartTriage    < CONVERT(datetime, @EndDate))
+   OR (ehrt.dateClassification >= CONVERT(datetime, @StartDate) AND ehrt.dateClassification < CONVERT(datetime, @EndDate));

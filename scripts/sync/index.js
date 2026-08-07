@@ -82,11 +82,16 @@ function mapRow(row) {
   const fechaTriage  = toDateStr(row['FechaTriage']);
   const horaTriage   = toTimeStr(row['HoraTriage']);
 
-  // Clave única para upsert idempotente
+  // Clave única para upsert idempotente.
+  // SIEMPRE basada en documento+fecha+hora de inicio del triage: es el único
+  // dato estable desde el primer instante. El número de Ingreso llega después
+  // (a veces minutos después, cuando GoMedisys formaliza el encuentro), así
+  // que no puede usarse como clave — si la clave cambiara de "triage:..." a
+  // "ingreso:..." en cuanto el Ingreso aparece, el upsert crearía una fila
+  // nueva en lugar de actualizar la existente, dejando la original huérfana
+  // con clasificacion_triage en NULL para siempre.
   let syncKey = null;
-  if (ingreso) {
-    syncKey = `ingreso:${ingreso}`;
-  } else if (documento && fechaTriage) {
+  if (documento && fechaTriage) {
     syncKey = `triage:${documento}:${fechaTriage}:${horaTriage ?? '00:00:00'}`;
   }
 

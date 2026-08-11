@@ -2,6 +2,8 @@ app/node_modules/
 app/dist/
 app/.env
 app/.env.local
+scripts/sync/node_modules/
+scripts/sync/.env
 .DS_Store
 *.log
 supabase/.temp/

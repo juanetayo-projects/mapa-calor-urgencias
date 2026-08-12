@@ -4,6 +4,20 @@
 
 SET DATEFIRST 1;
 
+-- Pre-filtro por idTriage vía UNION: evita el anti-patrón "OR entre dos
+-- columnas de fecha distintas" que impedía usar índices y forzaba un
+-- escaneo completo de EHRTriage (275k filas) en cada sync de 15 min.
+-- dateClassification no tiene índice propio, así que esa rama sigue
+-- escaneando, pero solo proyecta idTriage (liviano) en vez de las ~50
+-- columnas + subconsultas correlacionadas de la SELECT principal, que
+-- ahora solo se ejecutan sobre las filas que realmente califican.
+WITH FilteredTriage AS (
+    SELECT idTriage FROM EHRTriage
+    WHERE dateStartTriage    >= CONVERT(datetime, @StartDate) AND dateStartTriage    < CONVERT(datetime, @EndDate)
+    UNION
+    SELECT idTriage FROM EHRTriage
+    WHERE dateClassification >= CONVERT(datetime, @StartDate) AND dateClassification < CONVERT(datetime, @EndDate)
+)
 SELECT
      uctd.code                                                AS 'TipoIdentificacion'
     ,ehrt.documentNumber                                      AS 'Documento'
@@ -176,6 +190,7 @@ SELECT
         WHEN 7 THEN 'DOM'
      END                                                     AS 'Ndia'
 FROM EHRTriage AS ehrt
+INNER JOIN FilteredTriage            AS ft    ON (ft.idTriage            = ehrt.idTriage)
 INNER JOIN physicalLocations         AS pl    ON (pl.idPhysicalLocation  = ehrt.idPhysicalLocation)
 LEFT  JOIN contracts                 AS c     ON (c.idContract           = ehrt.idContract)
 LEFT  JOIN contractPlans             AS cp    ON (c.idContract           = cp.idContract AND cp.idPlan = ehrt.idPlan)
@@ -194,13 +209,6 @@ OUTER APPLY (
     FROM EHREvents AS ehre
     WHERE ehre.idAction = 382 AND ehre.idEncounter = e.idEncounter
     ORDER BY ehre.actionRecordedDate ASC
-) AS UrgenciasInicial
--- ── Filtro horario (Colombia local time) ────────────────────────
--- Incluye tanto los triages iniciados en la ventana como los clasificados
--- en la ventana: la clasificación (ClasificacionTriage) casi nunca está
--- lista en el instante del triage, sino minutos/horas después. Sin esta
--- segunda condición, un registro capturado antes de ser clasificado
--- (sync_key = triage:documento:fecha:hora, sin idEncounter todavía) nunca
--- se vuelve a consultar y queda congelado para siempre con clasificación NULL.
-WHERE (ehrt.dateStartTriage    >= CONVERT(datetime, @StartDate) AND ehrt.dateStartTriage    < CONVERT(datetime, @EndDate))
-   OR (ehrt.dateClassification >= CONVERT(datetime, @StartDate) AND ehrt.dateClassification < CONVERT(datetime, @EndDate));
+) AS UrgenciasInicial;
+-- El filtro horario (triages iniciados O clasificados en la ventana) ahora
+-- vive en el CTE FilteredTriage de arriba, vía UNION en vez de OR.

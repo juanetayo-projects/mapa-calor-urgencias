@@ -246,7 +246,7 @@ async function main() {
         encrypt:                true,    // Obligatorio en Azure SQL
         trustServerCertificate: false,
         connectTimeout:         30_000,
-        requestTimeout:        120_000,
+        requestTimeout:        280_000,
       },
     });
     console.log('[sync] Conexión a SQL Server establecida');

@@ -4,6 +4,12 @@
 
 SET DATEFIRST 1;
 
+-- READ UNCOMMITTED (= NOLOCK en todas las tablas de este batch): esta es una
+-- consulta de solo lectura para reporting: no necesita bloquear filas y así
+-- evita quedar en espera detrás de escrituras concurrentes de GoMedisys en
+-- producción, que era la causa de los timeouts intermitentes de 280s.
+SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
+
 -- Pre-filtro por idTriage vía UNION: evita el anti-patrón "OR entre dos
 -- columnas de fecha distintas" que impedía usar índices y forzaba un
 -- escaneo completo de EHRTriage (275k filas) en cada sync de 15 min.

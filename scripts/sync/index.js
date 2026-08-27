@@ -235,29 +235,47 @@ async function main() {
   let pool;
 
   try {
-    // ── 1. Conectar a Azure SQL ──────────────────────────────────
-    pool = await sql.connect({
-      server:   process.env.GOMEDISYS_HOST,
-      port:     parseInt(process.env.GOMEDISYS_PORT || '1433', 10),
-      database: process.env.GOMEDISYS_DATABASE,
-      user:     process.env.GOMEDISYS_USERNAME,
-      password: process.env.GOMEDISYS_PASSWORD,
-      options: {
-        encrypt:                true,    // Obligatorio en Azure SQL
-        trustServerCertificate: false,
-        connectTimeout:         30_000,
-        requestTimeout:        280_000,
-      },
-    });
-    console.log('[sync] Conexión a SQL Server establecida');
-
-    // ── 2. Ejecutar query ────────────────────────────────────────
+    // ── 1-2. Conectar y ejecutar query, con reintento ────────────
+    // El query ocasionalmente expira (280s) por bloqueos transitorios en
+    // GoMedisys (producción). Un solo reintento con reconexión resuelve la
+    // mayoría de estos casos sin marcar el run como fallido.
+    const MAX_ATTEMPTS = 2;
     const querySQL = fs.readFileSync(path.join(__dirname, 'query.sql'), 'utf8');
-    const req = pool.request();
-    req.input('StartDate', sql.NVarChar(30), range.start);
-    req.input('EndDate',   sql.NVarChar(30), range.end);
+    let result;
 
-    const result = await req.query(querySQL);
+    for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+      try {
+        pool = await sql.connect({
+          server:   process.env.GOMEDISYS_HOST,
+          port:     parseInt(process.env.GOMEDISYS_PORT || '1433', 10),
+          database: process.env.GOMEDISYS_DATABASE,
+          user:     process.env.GOMEDISYS_USERNAME,
+          password: process.env.GOMEDISYS_PASSWORD,
+          options: {
+            encrypt:                true,    // Obligatorio en Azure SQL
+            trustServerCertificate: false,
+            connectTimeout:         30_000,
+            requestTimeout:        280_000,
+          },
+        });
+        console.log('[sync] Conexión a SQL Server establecida');
+
+        const req = pool.request();
+        req.input('StartDate', sql.NVarChar(30), range.start);
+        req.input('EndDate',   sql.NVarChar(30), range.end);
+
+        result = await req.query(querySQL);
+        break;
+
+      } catch (attemptErr) {
+        if (pool) await pool.close().catch(() => {});
+        pool = null;
+        if (attempt >= MAX_ATTEMPTS) throw attemptErr;
+        console.warn(`[sync] Intento ${attempt}/${MAX_ATTEMPTS} falló (${attemptErr.message}), reintentando...`);
+        await new Promise(r => setTimeout(r, 5_000));
+      }
+    }
+
     recordsFetched = result.recordset.length;
     console.log(`[sync] Registros obtenidos: ${recordsFetched}`);
 

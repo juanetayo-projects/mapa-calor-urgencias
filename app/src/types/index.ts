@@ -6,6 +6,7 @@ export interface Profile {
   full_name: string
   role: Role
   avatar_url?: string
+  activo: boolean
   created_at: string
   updated_at: string
 }

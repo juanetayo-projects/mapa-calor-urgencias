@@ -6,7 +6,7 @@ import { useStore } from '@/store/useStore'
 import { useConfiguracion } from '@/hooks/useAtenciones'
 import {
   Save, Users, Settings2, Shield, CheckCircle2, Loader2,
-  UserPlus, Trash2, KeyRound,
+  UserPlus, Trash2, KeyRound, UserCheck, UserX,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import type { Profile, Configuracion } from '@/types'
@@ -83,6 +83,20 @@ export default function AdminPage() {
       setDialog(null)
     },
     onError: (err: Error) => toast.error(`Error: ${err.message}`),
+  })
+
+  // Activate / deactivate user
+  const toggleActiveMutation = useMutation({
+    mutationFn: async ({ id, activo }: { id: string; activo: boolean }) => {
+      const { error } = await supabase.from('profiles').update({ activo }).eq('id', id)
+      if (error) throw error
+      return activo
+    },
+    onSuccess: (activo) => {
+      queryClient.invalidateQueries({ queryKey: ['profiles'] })
+      toast.success(activo ? 'Usuario activado' : 'Usuario inactivado')
+    },
+    onError: () => toast.error('Error al actualizar el estado del usuario'),
   })
 
   // Change role
@@ -173,13 +187,17 @@ export default function AdminPage() {
                     <th className="pb-2 text-xs font-semibold text-slate-500 uppercase">Usuario</th>
                     <th className="pb-2 text-xs font-semibold text-slate-500 uppercase">Email</th>
                     <th className="pb-2 text-xs font-semibold text-slate-500 uppercase">Rol</th>
+                    <th className="pb-2 text-xs font-semibold text-slate-500 uppercase">Estado</th>
                     <th className="pb-2 text-xs font-semibold text-slate-500 uppercase">Registro</th>
                     <th className="pb-2 text-xs font-semibold text-slate-500 uppercase text-right">Acciones</th>
                   </tr>
                 </thead>
                 <tbody>
                   {users.map((u) => (
-                    <tr key={u.id} className="border-b border-slate-100 hover:bg-slate-50">
+                    <tr
+                      key={u.id}
+                      className={`border-b border-slate-100 hover:bg-slate-50 ${u.activo === false ? 'opacity-50' : ''}`}
+                    >
                       <td className="py-2.5 pr-4 font-medium text-slate-700">{u.full_name}</td>
                       <td className="py-2.5 pr-4 text-slate-500">{u.email}</td>
                       <td className="py-2.5 pr-4">
@@ -196,6 +214,17 @@ export default function AdminPage() {
                           <option value="admin">Administrador</option>
                         </select>
                       </td>
+                      <td className="py-2.5 pr-4">
+                        <span
+                          className={`inline-block text-xs font-semibold px-2.5 py-1 rounded-full ${
+                            u.activo === false
+                              ? 'bg-slate-100 text-slate-500'
+                              : 'bg-green-100 text-green-700'
+                          }`}
+                        >
+                          {u.activo === false ? 'Inactivo' : 'Activo'}
+                        </span>
+                      </td>
                       <td className="py-2.5 text-slate-400 text-xs">
                         {new Date(u.created_at).toLocaleDateString('es-CO')}
                       </td>
@@ -210,6 +239,23 @@ export default function AdminPage() {
                           >
                             <KeyRound className="w-3.5 h-3.5" />
                           </button>
+                          {u.id !== profile.id && (
+                            <button
+                              title={u.activo === false ? 'Activar usuario' : 'Inactivar usuario'}
+                              onClick={() =>
+                                toggleActiveMutation.mutate({ id: u.id, activo: u.activo === false })
+                              }
+                              className={`p-1.5 rounded-lg transition-colors ${
+                                u.activo === false
+                                  ? 'text-slate-400 hover:text-green-600 hover:bg-green-50'
+                                  : 'text-slate-400 hover:text-amber-600 hover:bg-amber-50'
+                              }`}
+                            >
+                              {u.activo === false
+                                ? <UserCheck className="w-3.5 h-3.5" />
+                                : <UserX className="w-3.5 h-3.5" />}
+                            </button>
+                          )}
                           {u.id !== profile.id && (
                             <button
                               title="Eliminar usuario"

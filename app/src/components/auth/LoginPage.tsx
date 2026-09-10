@@ -21,7 +21,7 @@ export default function LoginPage() {
     setLoading(true)
     const err = await signIn(email, password)
     setLoading(false)
-    if (err) setError('Credenciales incorrectas. Verifique su email y contraseña.')
+    if (err) setError(err)
   }
 
   async function handleReset(e: React.FormEvent) {
